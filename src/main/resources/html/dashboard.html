@@ -1,0 +1,82 @@
+<!-- src/main/resources/html/unified.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CybeDefend Dashboard</title>
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 1em; background: #fafafa; color: #333; }
+        .container { max-width: 800px; margin: auto; }
+        h2, h3 { margin-top: 1em; }
+        button { background: #7845ff; color: #fff; border: none; padding: 0.75em 1.5em; border-radius: 4px; cursor: pointer; }
+        .counts { margin: 1.5em 0; }
+        .counts div { font-weight: 600; }
+        .counts ul { list-style: none; padding: 0; }
+        .counts li { margin: 0.25em 0; }
+        section { margin-top: 1em; }
+        .finding { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 0.8em; margin-bottom: 0.6em; }
+        .finding.CRITICAL { border-left: 4px solid #e53e3e; }
+        .finding.HIGH     { border-left: 4px solid #dd6b20; }
+        .finding.MEDIUM   { border-left: 4px solid #3182ce; }
+        .finding.LOW      { border-left: 4px solid #4a5568; }
+        .finding.INFO     { border-left: 4px solid #718096; }
+        .title { font-weight: 600; }
+        .meta  { font-size: 0.9em; color: #666; }
+        footer { margin-top: 2em; font-size: 0.85em; color: #666; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>CybeDefend Dashboard</h2>
+    <button id="startScan">▶️ Start Scan</button>
+    <div class="counts">
+        <div>Total Vulnerabilities: %%TOTAL%%</div>
+        <ul>
+            <li>SAST: %%SAST_COUNT%%</li>
+            <li>IaC: %%IAC_COUNT%%</li>
+            <li>SCA: %%SCA_COUNT%%</li>
+        </ul>
+    </div>
+    <footer>Last updated: %%DATE%%</footer>
+    <hr/>
+    <section><h3>SAST Findings</h3><div id="sast-container"></div></section>
+    <section><h3>IaC Findings</h3><div id="iac-container"></div></section>
+    <section><h3>SCA Findings</h3><div id="sca-container"></div></section>
+</div>
+<script>
+    document.getElementById('startScan').addEventListener('click', () =>
+        window.location.href = 'cybedefend://startScan'
+    );
+
+    function renderFindings(id, findings) {
+        const container = document.getElementById(id);
+        container.innerHTML = '';
+        if (!findings.length) {
+            container.innerHTML = '<p>No vulnerabilities found.</p>';
+            return;
+        }
+        findings.forEach(vuln => {
+            const sev = (vuln.currentSeverity||'INFO').toUpperCase();
+            const div = document.createElement('div');
+            div.className = `finding ${sev}`;
+            div.innerHTML = `
+        <div class="title">${vuln.vulnerability?.name||vuln.id}</div>
+        <div class="meta">${
+                (vuln.path ? `File: ${vuln.path} | ` : '')
+            }${
+                (vuln.vulnerableStartLine ? `Line: ${vuln.vulnerableStartLine} | ` : '')
+            }Severity: ${vuln.currentSeverity||'N/A'}</div>`;
+            container.appendChild(div);
+        });
+    }
+
+    let sastData, iacData, scaData;
+    try { sastData = JSON.parse('%%SAST_JSON%%'); } catch { sastData = []; }
+    try { iacData  = JSON.parse('%%IAC_JSON%%');  } catch { iacData  = []; }
+    try { scaData  = JSON.parse('%%SCA_JSON%%');  } catch { scaData  = []; }
+    renderFindings('sast-container', sastData);
+    renderFindings('iac-container', iacData);
+    renderFindings('sca-container', scaData);
+</script>
+</body>
+</html>

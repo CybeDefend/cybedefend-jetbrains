@@ -1,0 +1,39 @@
+<idea-plugin>
+    <!-- Unique plugin ID -->
+    <id>com.cybedefend.jetbrains</id>
+
+    <!-- Plugin name displayed to the user -->
+    <name>CybeDefend</name>
+
+    <!-- Vendor information -->
+    <vendor url="https://www.cybedefend.com">CybeDefend</vendor>
+
+    <!-- HTML‐supported description -->
+    <description><![CDATA[
+    The CybeDefend IntelliJ Plugin provides seamless integration with the CybeDefend security scanning platform.
+    <ul>
+      <li>Start scans directly from the IDE</li>
+      <li>View Summary, SAST, IaC and SCA results in a single unified tool window</li>
+      <li>Interact with the CybeDefend chatbot</li>
+      <li>Configure API key and project settings</li>
+    </ul>
+  ]]></description>
+
+    <!-- Declare dependency on IntelliJ Platform -->
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Notification group for all CybeDefend balloon popups -->
+        <notificationGroup displayType="BALLOON" id="CybeDefend"/>
+
+        <!-- Unified CybeDefend Tool Window, now docked at the bottom panel -->
+        <toolWindow
+                id="CybeDefend"
+                anchor="bottom"
+                icon="/icons/cybedefend.png"
+                factoryClass="com.cybedefend.toolwindow.UnifiedToolWindowFactory"
+                secondary="false"
+                canCloseContents="false"
+        />
+    </extensions>
+</idea-plugin>
