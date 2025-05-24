@@ -47,8 +47,8 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
                 setShowGrid(false)
                 columnModel.getColumn(0).apply {
                     minWidth = 80
-                    maxWidth = 80
-                    preferredWidth = 80
+                    maxWidth = 100
+                    preferredWidth = 100
                 }
             }
 
@@ -97,7 +97,7 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
             override fun update(e: AnActionEvent) {
                 val running = scanState.isLoading
                 e.presentation.isEnabled = !running
-                e.presentation.icon = AllIcons.Actions.Execute
+                e.presentation.icon = if (running) loader else AllIcons.Actions.Execute
             }
 
             override fun getActionUpdateThread() = ActionUpdateThread.EDT
@@ -135,7 +135,13 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
         }
 
         /* ---------- 5. vertical sidebar (left) ---------- */
-        val leftGroup = DefaultActionGroup(startScanAction, clearResultsAction)
+        val leftGroup = DefaultActionGroup().apply {
+            add(startScanAction)
+            add(clearResultsAction)
+            addSeparator()
+            add(settingsAction)
+        }
+
         val leftToolbar = ActionManager.getInstance()
             .createActionToolbar("CybeDefend.Left", leftGroup, /* horizontal = */ false).apply {
                 targetComponent = null          // no specific context component
@@ -183,15 +189,10 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
                 scanState.scaResults?.total ?: 0
             ).sum()
 
-            if (scanState.isLoading) {
-                summary.icon = com.intellij.ui.AnimatedIcon.Default()
-                summary.text = "Scanning…"
-            } else {
-                summary.icon = null
-                summary.text =
-                    "Total vulnerabilities: $total • Last scan state: ${scanState.error ?: scanState.scaResults?.scanProjectInfo?.state ?: "N/A"}"
+            summary.text = when {
+                scanState.isLoading -> "Scanning…"
+                else -> "Total vulnerabilities: $total • Last scan state: ${scanState.error ?: scanState.scaResults?.scanProjectInfo?.state ?: "N/A"}"
             }
-
         }
         refresh()
         scanState.addListener { ApplicationManager.getApplication().invokeLater { refresh() } }
