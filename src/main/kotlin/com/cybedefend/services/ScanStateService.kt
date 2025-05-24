@@ -87,9 +87,6 @@ class ScanStateService(private val project: Project) {
     }
 
     /**
-     * Démarre le scan complet en tâche de fond.
-     */
-    /**
      * Lance tout le workflow de scan (archive, API, polling, fetch, notify).
      * @param projectId ID CybeDefend du projet
      * @param workspaceRoot chemin local du workspace à zipper
@@ -189,9 +186,12 @@ class ScanStateService(private val project: Project) {
         repeat(maxAttempts) { attempt ->
             if (indicator.isCanceled) throw InterruptedException("Cancelled")
             indicator.text2 = "Polling status (${attempt + 1}/$maxAttempts)…"
-            val status = runBlocking { apiService.getScanStatus(projectId, scanId).state }
-            if (status.toString() == "COMPLETED" || status.toString() == "COMPLETED_DEGRADED" || status.toString() == "FAILED") {
-                return status.toString()
+
+            val raw    = runBlocking { apiService.getScanStatus(projectId, scanId).state }
+            val status = raw.uppercase()        // normalise once
+
+            if (status in listOf("COMPLETED", "COMPLETED_DEGRADED", "FAILED")) {
+                return status                   // finished → exit loop
             }
             TimeUnit.SECONDS.sleep(5)
         }

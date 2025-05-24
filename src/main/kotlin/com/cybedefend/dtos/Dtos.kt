@@ -1,5 +1,3 @@
-import java.time.Instant
-
 // ======================================
 // Enums
 // ======================================
@@ -49,7 +47,7 @@ data class ProjectConfig(
 data class MessageDto(
     val role: String,
     val content: String,
-    val createdAt: Instant
+    val createdAt: String
 )
 
 data class ConversationResponseDto(
@@ -68,7 +66,7 @@ data class OrganizationInformationsResponseDto(
     val website: String,
     val email: String,
     val monthlyScanCount: Int = 0,
-    val monthlyScanResetAt: Instant = Instant.now(),
+    val monthlyScanResetAt: String = "", // Changed String to String and provided a default empty string
     val concurrentScanLimit: Int = 1,
     val monthlyScanLimit: Int = 1000
 )
@@ -81,8 +79,8 @@ data class TeamInformationsResponseDto(
     val id: String,
     val name: String,
     val description: String,
-    val createdAt: Instant,
-    val updatedAt: Instant
+    val createdAt: String, // Changed String to String
+    val updatedAt: String  // Changed String to String
 )
 
 // ======================================
@@ -111,7 +109,7 @@ data class IssueCountResponseDto(
 
 data class AnalysisTypeResponseDto(
     val type: String,
-    val lastScan: Instant,
+    val lastScan: String,
     val source: String,
     val issuesCount: IssueCountResponseDto
 )
@@ -121,8 +119,8 @@ data class ProjectAllInformationsResponseDto(
     val teamId: String,
     val teamName: String,
     val name: String,
-    val createdAt: Instant,
-    val updatedAt: Instant,
+    val createdAt: String,
+    val updatedAt: String,
     val riskLevel: String,
     val issuesCount: IssueCountResponseDto,
     val analyses: List<AnalysisTypeResponseDto>
@@ -140,8 +138,8 @@ data class ProjectInformationsResponseDto(
     val teamId: String,
     val teamName: String,
     val name: String,
-    val createdAt: Instant,
-    val updatedAt: Instant,
+    val createdAt: String,
+    val updatedAt: String,
     val applicationType: String? = null,
     val analysisFrequency: String? = null,
     val emailAlertEnabled: Boolean? = null,
@@ -249,7 +247,7 @@ data class GetLastScanStatusResponseDto(
     val id: String,
     val state: String,
     val projectId: String,
-    val createAt: Instant,
+    val createAt: String,
     val scanType: String?
 )
 
@@ -262,9 +260,11 @@ data class CountVulnerabilitiesCountByType(
 data class ScanProjectInfoDto(
     val scanId: String,
     val state: String,
-    val createAt: Instant,
+    val createAt: String,
     val scanType: String?
 )
+
+typealias DetailedVulnerability = VulnerabilityDtoResponse
 
 data class GetProjectVulnerabilitiesResponseDto(
     val projectId: String,
@@ -278,7 +278,7 @@ data class GetProjectVulnerabilitiesResponseDto(
     val status: List<String>,
     val language: String,
     val priority: List<String>,
-    val vulnerabilities: List<Any>,
+    val vulnerabilities: List<DetailedVulnerability>,      // << was List<Any>
     val total: Int,
     val scanProjectInfo: ScanProjectInfoDto,
     val vulnCountByType: CountVulnerabilitiesCountByType
@@ -544,25 +544,25 @@ data class StartScanRequestDto(
 data class ContainerDto(
     val id: String,
     val status: String,
-    val createdAt: Instant,
-    val startedAt: Instant,
-    val finishedAt: Instant,
+    val createdAt: String,
+    val startedAt: String,
+    val finishedAt: String,
     val scanId: String
 )
 
 data class ScanResponseDto(
     val id: String,
     val name: String,
-    val state: ScanState,
+    val state: String,
     val language: List<String>,
     val projectId: String,
     val private: Boolean,
     val initializerUserId: String?,
-    val createAt: Instant,
-    val updatedAt: Instant,
+    val createAt: String,
+    val updatedAt: String,
     val scanType: String?,
-    val startTime: Instant?,
-    val endTime: Instant?,
+    val startTime: String?,
+    val endTime: String?,
     val containers: List<ContainerDto>,
     val progress: Int,
     val step: String,

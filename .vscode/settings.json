@@ -1,0 +1,59 @@
+{
+    // Configuration Kotlin
+    "kotlin.languageServer.enabled": true,
+    "kotlin.completion.snippets.enabled": true,
+    "kotlin.linting.debounceTime": 250,
+    "kotlin.indexing.enabled": true,
+    
+    // Configuration Java pour le support Gradle
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.sources.organizeImports.starThreshold": 99,
+    "java.sources.organizeImports.staticStarThreshold": 99,
+    "java.import.gradle.enabled": true,
+    "java.import.gradle.wrapper.enabled": true,
+    "java.import.gradle.java.home": null,
+    
+    // Exclusions pour améliorer les performances
+    "files.exclude": {
+        "**/build/**": true,
+        "**/.gradle/**": true,
+        "**/gradle/wrapper/**": false
+    },
+    
+    // Configuration de l'editeur pour Kotlin
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": true,
+    
+    // Formatage spécifique pour Kotlin
+    "[kotlin]": {
+        "editor.defaultFormatter": "fwcd.kotlin",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
+    },
+    
+    // Configuration des fichiers Gradle Kotlin DSL
+    "[gradle]": {
+        "editor.defaultFormatter": "fwcd.kotlin"
+    },
+    
+    // Associations de fichiers
+    "files.associations": {
+        "*.kts": "kotlin",
+        "*.kt": "kotlin"
+    },
+    
+    // Désactiver les erreurs pour les APIs IntelliJ non reconnues par VS Code
+    "problems.decorations.enabled": false,
+    "editor.semanticHighlighting.enabled": false,
+    "kotlin.linting.enabled": false,
+    "kotlin.externalSources.useKlsScheme": false,
+    "kotlin.externalSources.autoConvertToKotlin": false,
+    
+    // Supprimer les erreurs de référence non résolues
+    "editor.rulers": [],
+    "editor.showUnused": false,
+    "editor.suggest.showStatusBar": false
+}

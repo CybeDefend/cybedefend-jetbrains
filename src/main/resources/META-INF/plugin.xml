@@ -26,6 +26,11 @@
         <!-- Notification group for all CybeDefend balloon popups -->
         <notificationGroup displayType="BALLOON" id="CybeDefend"/>
 
+        <applicationConfigurable
+                id="cybedefend.settings"
+                displayName="CybeDefend"
+                instance="com.cybedefend.settings.CybeDefendSettingsConfig"/>
+
         <!-- Unified CybeDefend Tool Window, now docked at the bottom panel -->
         <toolWindow
                 id="CybeDefend"

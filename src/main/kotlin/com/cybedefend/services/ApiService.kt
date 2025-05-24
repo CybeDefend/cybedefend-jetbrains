@@ -30,6 +30,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.*
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 /**
  * Retrofit API definitions matching the backend endpoints.
@@ -39,7 +40,7 @@ private interface ApiServiceApi {
     @POST("project/{projectId}/scan/start")
     suspend fun startScan(
         @Path("projectId") projectId: String,
-        @Part("scan") scan: MultipartBody.Part
+        @Part scan: MultipartBody.Part
     ): StartScanResponseDto
 
     @GET("project/{projectId}/results/{scanType}")
@@ -119,48 +120,54 @@ class ApiService(
     private val authService: AuthService
 ) {
     private val api: ApiServiceApi
-    private val baseUrl: String = "https://api-preprod.cybedefend.com"
+    private val baseUrl: String = "http://localhost:3000/" // Ensure trailing slash
 
     init {
+        println("ApiService init: Starting initialization.")
+
+
         val client = OkHttpClient.Builder()
             .addInterceptor { chain ->
-                val original = chain.request()
-                val builder = original.newBuilder()
-
-                val apiKey = runBlocking { authService.getApiKey() }
-                if (apiKey.isNullOrBlank()) {
-                    throw IllegalStateException("API Key is not configured.")
+                // Pull the key once per request from AuthService
+                val apiKey = authService.getApiKey()
+                val req = if (!apiKey.isNullOrBlank()) {
+                    chain.request().newBuilder()
+                        // adapt the header name/value to your backend
+                        .addHeader("X-API-Key", apiKey)      // <- use this line instead if your API expects it
+                        .build()
+                } else {
+                    chain.request()
                 }
-                builder.header("X-API-Key", apiKey)
-
-                if (original.body !is MultipartBody) {
-                    builder.header("Content-Type", "application/json")
-                }
-                chain.proceed(builder.build())
+                chain.proceed(req)
             }
+            // ----------------------------------------------------------------
+            // keep any other interceptors you already had
+            //.addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY })
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
+            .writeTimeout(120, TimeUnit.SECONDS)
             .build()
 
         val retrofit = Retrofit.Builder()
-            .baseUrl(baseUrl)
-            .addConverterFactory(GsonConverterFactory.create())  // <- au lieu de JacksonConverterFactory
+            .baseUrl(baseUrl) // Set the base URL
+            .client(client)   // Set the custom OkHttpClient
+            .addConverterFactory(GsonConverterFactory.create()) // Add Gson converter
             .build()
+        println("ApiService init: Retrofit instance built with base URL, client, and Gson converter.")
 
         api = retrofit.create(ApiServiceApi::class.java)
+        println("ApiService init: Retrofit API interface created. Initialization complete.")
     }
 
     suspend fun startScan(projectId: String, zipFilePath: String): StartScanResponseDto =
         withContext(Dispatchers.IO) {
-            val file = File(zipFilePath)
-            val requestBody = file.asRequestBody("application/zip".toMediaTypeOrNull())
-            val part = MultipartBody.Part.createFormData(
-                "scan",
-                file.name,
-                requestBody
-            )
             try {
-                api.startScan(projectId, part)
+                val file = File(zipFilePath)
+                val requestFile = file.asRequestBody("application/zip".toMediaTypeOrNull())
+                val body = MultipartBody.Part.createFormData("scan", file.name, requestFile)
+                api.startScan(projectId, body) // Corrected to pass projectId
             } catch (e: Throwable) {
-                throw mapToApiError(e, "startScan", projectId)
+                throw mapToApiError(e, "startScan", "ProjectId: $projectId")
             }
         }
 
@@ -172,27 +179,21 @@ class ApiService(
         severity: List<String>? = null
     ): GetProjectVulnerabilitiesResponseDto = withContext(Dispatchers.IO) {
         try {
-            api.getScanResults(
-                projectId,
-                scanType,
-                pageNumber ?: 1,
-                pageSizeNumber ?: 500,
-                severity
-            )
+            api.getScanResults(projectId, scanType, pageNumber ?: 1, pageSizeNumber ?: 50, severity)
         } catch (e: Throwable) {
-            throw mapToApiError(e, "getScanResults ($scanType)", projectId)
+            throw mapToApiError(e, "getScanResults", "ProjectId: $projectId, ScanType: $scanType")
         }
     }
 
     suspend fun getVulnerabilityDetails(
         projectId: String,
         vulnerabilityId: String,
-        scanType: String
+        scanType: String // scanType was missing as a parameter here, but present in the interface call
     ): GetProjectVulnerabilityByIdResponseDto = withContext(Dispatchers.IO) {
         try {
             api.getVulnerabilityDetails(projectId, scanType, vulnerabilityId)
         } catch (e: Throwable) {
-            throw mapToApiError(e, "getVulnerabilityDetails ($scanType)", projectId)
+            throw mapToApiError(e, "getVulnerabilityDetails", "VulnerabilityId: $vulnerabilityId")
         }
     }
 
@@ -201,31 +202,34 @@ class ApiService(
             try {
                 api.getScanStatus(projectId, scanId)
             } catch (e: Throwable) {
-                throw mapToApiError(e, "getScanStatus", projectId)
+                throw mapToApiError(e, "getScanStatus", "ScanId: $scanId")
             }
         }
 
-    suspend fun startConversation(request: StartConversationRequestDto): InitiateConversationResponse =
+    suspend fun startConversation(projectId: String, request: StartConversationRequestDto): InitiateConversationResponse = // Added projectId
         withContext(Dispatchers.IO) {
-            val projectId = request.projectId
-                ?: throw IllegalArgumentException("Project ID is required for startConversation.")
             try {
                 api.startConversation(projectId, request)
             } catch (e: Throwable) {
-                throw mapToApiError(e, "startConversation", projectId)
+                throw mapToApiError(e, "startConversation", "ProjectId: $projectId")
             }
         }
 
     suspend fun continueConversation(
+        projectId: String, // Added projectId
+        conversationId: String, // Added conversationId
         request: AddMessageConversationRequestDto
     ): InitiateConversationResponse = withContext(Dispatchers.IO) {
+        // The request DTO already contains projectId and idConversation,
+        // but the API path requires them separately.
         if (request.idConversation.isBlank() || request.projectId.isBlank()) {
-            throw IllegalArgumentException("Project ID and Conversation ID are required for continueConversation.")
+            // This check might be redundant if we enforce projectId and conversationId as parameters to this function
+            throw IllegalArgumentException("Project ID and Conversation ID must be set in the request for continueConversation.")
         }
         try {
-            api.continueConversation(request.projectId, request.idConversation, request)
+            api.continueConversation(projectId, conversationId, request)
         } catch (e: Throwable) {
-            throw mapToApiError(e, "continueConversation", request.projectId)
+            throw mapToApiError(e, "continueConversation", "ConversationId: $conversationId")
         }
     }
 
@@ -243,7 +247,7 @@ class ApiService(
             try {
                 api.getRepositories(organizationId)
             } catch (e: Throwable) {
-                throw mapToApiError(e, "getRepositories", "Org: $organizationId")
+                throw mapToApiError(e, "getRepositories", "OrganizationId: $organizationId")
             }
         }
 
@@ -252,7 +256,7 @@ class ApiService(
             try {
                 api.getTeams(organizationId)
             } catch (e: Throwable) {
-                throw mapToApiError(e, "getTeams", "Org: $organizationId")
+                throw mapToApiError(e, "getTeams", "OrganizationId: $organizationId")
             }
         }
 
@@ -261,62 +265,74 @@ class ApiService(
             try {
                 api.createProject(teamId, mapOf("name" to projectName))
             } catch (e: Throwable) {
-                throw mapToApiError(e, "createProject", "Team: $teamId")
+                throw mapToApiError(e, "createProject", "TeamId: $teamId")
             }
         }
 
     suspend fun linkProject(
         organizationId: String,
         projectId: String,
-        repositoryId: String
+        repositoryId: String // repositoryId was missing
     ): RepositoryDto = withContext(Dispatchers.IO) {
         try {
-            api.linkProject(
-                organizationId,
-                projectId,
-                mapOf("repositoryId" to repositoryId)
-            )
+            api.linkProject(organizationId, projectId, mapOf("repositoryId" to repositoryId))
         } catch (e: Throwable) {
-            throw mapToApiError(e, "linkProject", "Org: $organizationId, Proj: $projectId")
+            throw mapToApiError(e, "linkProject", "ProjectId: $projectId, RepositoryId: $repositoryId")
         }
     }
 
     suspend fun getProjectsOrganization(
-        organizationId: String,
-        pageSize: Int = 100,
-        page: Int = 1,
-        searchQuery: String = ""
+        organizationId: String, // Added organizationId
+        page: Int = 1,          // Added page with default
+        pageSize: Int = 20,     // Added pageSize with default
+        searchQuery: String? = null // searchQuery was String = "", changed to String? = null
     ): PaginatedProjectsAllInformationsResponseDto = withContext(Dispatchers.IO) {
         try {
-            api.getProjectsOrganization(
-                organizationId,
-                page,
-                pageSize,
-                if (searchQuery.isBlank()) null else searchQuery
-            )
+            api.getProjectsOrganization(organizationId, page, pageSize, searchQuery)
         } catch (e: Throwable) {
-            throw mapToApiError(e, "getProjectsOrganization", "Org: $organizationId")
+            throw mapToApiError(e, "getProjectsOrganization", "OrganizationId: $organizationId")
         }
     }
 
     private fun mapToApiError(error: Throwable, operation: String, context: String? = null): Exception {
+        // Consider adding HttpLoggingInterceptor for detailed request/response logs during development
+        // e.g. HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY }
+        println("ApiService Error in operation \'$operation\' (Context: $context): ${error.javaClass.simpleName} - ${error.message}")
+        error.printStackTrace() // For more detailed logs in the console
+
         return when (error) {
             is HttpException -> {
                 val code = error.code()
-                val msgBody = error.response()?.errorBody()?.string()
-                val detail = msgBody ?: error.message()
-                when (code) {
-                    401 -> Exception("API Authentication Failed: Invalid or missing API Key. Please check settings.")
-                    403 -> Exception("API Authorization Failed for $operation: Access Denied. Check permissions.")
-                    404 -> Exception("API Error: Resource not found for $operation. Context: ${context ?: "N/A"}.")
-                    400 -> Exception("API Error: Invalid Request for $operation. $detail")
-                    429 -> Exception("API Rate Limit Exceeded for $operation. Please try later.")
-                    in 500..599 -> Exception("Server Error ($code) during $operation. Please try later.")
-                    else -> Exception("API Error ($code) during $operation: $detail")
+                val errorBody = error.response()?.errorBody()?.string()
+                val detail = if (errorBody.isNullOrBlank()) error.message() else errorBody
+                val errorMessage = when (code) {
+                    400 -> "API Error: Invalid Request for \'$operation\'. $detail (Context: $context)"
+                    401 -> "API Authentication Failed: Invalid or missing API Key. Please check settings. (Operation: \'$operation\')"
+                    403 -> "API Authorization Failed for \'$operation\': Access Denied. Check permissions. (Context: $context)"
+                    404 -> "API Error: Resource not found for \'$operation\'. (Context: $context)"
+                    429 -> "API Rate Limit Exceeded for \'$operation\'. Please try later. (Context: $context)"
+                    in 500..599 -> "Server Error ($code) during \'$operation\'. Please try later. (Context: $context)"
+                    else -> "API Error ($code) during \'$operation\': $detail (Context: $context)"
                 }
+                println("Mapped HttpException ($code) for \'$operation\': $errorMessage")
+                Exception(errorMessage, error)
             }
-            is IOException -> Exception("Network Error for $operation: Could not reach server at $baseUrl.")
-            else -> Exception("Unexpected Error during $operation: ${error.message}")
+            is IOException -> {
+                // This often means network connectivity issues or server not reachable
+                val networkErrorMessage = "Network Error for \'$operation\': Could not reach server at $baseUrl. Please check your internet connection and VPN settings. (Context: $context)"
+                println("Mapped IOException for \'$operation\': $networkErrorMessage")
+                Exception(networkErrorMessage, error)
+            }
+            else -> {
+                val unexpectedErrorMessage = "Unexpected Error during \'$operation\': ${error.message ?: "Unknown error"}. (Context: $context)"
+                println("Mapped Unexpected Error for \'$operation\': $unexpectedErrorMessage")
+                Exception(unexpectedErrorMessage, error)
+            }
         }
     }
 }
+
+// Add missing import for TimeUnit if not present at the top of the file
+// import java.util.concurrent.TimeUnit
+// Add missing import for HttpLoggingInterceptor if you uncomment it
+// import okhttp3.logging.HttpLoggingInterceptor
