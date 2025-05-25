@@ -1,25 +1,39 @@
 package com.cybedefend.toolwindow
 
-import com.intellij.icons.AllIcons
-import com.intellij.openapi.actionSystem.ActionUpdateThread
-import com.cybedefend.services.*
+import GetProjectVulnerabilityByIdResponseDto
+import com.cybedefend.services.ApiService
+import com.cybedefend.services.AuthService
+import com.cybedefend.services.ScanStateService
 import com.cybedefend.settings.CybeDefendSettingsConfig
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.editor.markup.EffectType
+import com.intellij.openapi.editor.markup.HighlighterLayer
+import com.intellij.openapi.editor.markup.TextAttributes
+import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.wm.ToolWindow
-import com.intellij.ui.IconManager
 import com.intellij.openapi.wm.ToolWindowFactory
+import com.intellij.ui.JBColor
 import com.intellij.ui.ToolbarDecorator
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.ContentFactory
+import com.intellij.ui.table.JBTable
+import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
+import com.intellij.util.ui.UI
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.awt.BorderLayout
+import java.awt.Font
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
 import javax.swing.*
 import javax.swing.table.TableModel
 import javax.swing.table.TableRowSorter
@@ -83,13 +97,78 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
             addTab("Software Composition Analysis", buildTab("SCA", scaModel))
         }
 
+        // panneau où s’afficheront les détails de la vulnérabilité
+        val detailsPanel = VulnerabilityDetailsPanel(project)
+
+        // pour chaque onglet, on récupère le JBTable et on ajoute un listener
+        for (i in 0 until tabs.tabCount) {
+            val panel = tabs.getComponentAt(i) as JPanel
+            val scroll = panel.getComponent(1) as JBScrollPane
+            val table = scroll.viewport.view as JBTable
+            table.addMouseListener(object : MouseAdapter() {
+                override fun mouseClicked(e: MouseEvent) {
+                    if (e.clickCount == 1) {
+                        val row = table.rowAtPoint(e.point)
+                        if (row >= 0) {
+                            val modelRow = table.convertRowIndexToModel(row)
+                            val vulnId = (table.model as VulnerabilityTableModel).getIdAt(modelRow)
+                            val scanType = when (i) {
+                                0 -> "sast"
+                                1 -> "iac"
+                                else -> "sca"
+                            }
+                            CoroutineScope(Dispatchers.IO).launch {
+                                // 1) Récupère/valide la config (API key + projectId)
+                                val auth = AuthService.getInstance(project)
+                                val cfg = auth.ensureProjectConfigurationIsSet(ApiService(auth))
+                                if (cfg == null) return@launch
+
+                                // 2) Appel sécurisé avec projectId issu de cfg
+                                val api = ApiService(auth)
+                                val dto = api.getVulnerabilityDetails(cfg.projectId, vulnId, scanType)
+
+                                // 3) Update UI dans l’EDT
+                                ApplicationManager.getApplication().invokeLater {
+                                    detailsPanel.showDetails(dto)
+                                    // Open file and highlight the vulnerable line
+                                    LocalFileSystem.getInstance()
+                                        .refreshAndFindFileByPath(dto.vulnerability.path)
+                                        ?.let { vf ->
+                                            val descriptor = OpenFileDescriptor(
+                                                project, vf,
+                                                dto.vulnerability.vulnerableStartLine - 1, 0
+                                            )
+                                            FileEditorManager.getInstance(project)
+                                                .openTextEditor(descriptor, true)
+                                                ?.markupModel
+                                                ?.addLineHighlighter(
+                                                    dto.vulnerability.vulnerableStartLine - 1,
+                                                    HighlighterLayer.ERROR,
+                                                    TextAttributes(
+                                                        null, null,
+                                                        JBColor.RED,
+                                                        EffectType.LINE_UNDERSCORE,
+                                                        Font.PLAIN
+                                                    )
+                                                )
+                                        }
+
+                                }
+                            }
+
+                        }
+                    }
+                }
+            })
+
+        }
+
+        val loader = com.intellij.ui.AnimatedIcon.Default()
         /* ---------- 3. summary label ---------- */
         val summary = JLabel("Ready").apply { border = JBUI.Borders.empty(4, 8) }
 
         /* ---------- 4. actions ---------- */
         val startScanAction = object : AnAction("Start Scan", "Run a CybeDefend scan", AllIcons.Actions.Execute) {
-            private val loader = com.intellij.ui.AnimatedIcon.Default()
-
             override fun actionPerformed(e: AnActionEvent) {
                 if (!scanState.isLoading) launchScanAsync(project)     // guard against double-click
             }
@@ -97,7 +176,7 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
             override fun update(e: AnActionEvent) {
                 val running = scanState.isLoading
                 e.presentation.isEnabled = !running
-                e.presentation.icon = if (running) loader else AllIcons.Actions.Execute
+                e.presentation.icon = AllIcons.Actions.Execute
             }
 
             override fun getActionUpdateThread() = ActionUpdateThread.EDT
@@ -165,11 +244,22 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
 
 
         /* ---------- 7. root panel ---------- */
+        val split = JSplitPane(
+            JSplitPane.HORIZONTAL_SPLIT,
+            JPanel(BorderLayout()).apply {
+                add(leftToolbar.component, BorderLayout.WEST)
+                add(topBar, BorderLayout.NORTH)
+                add(tabs, BorderLayout.CENTER)
+                add(summary, BorderLayout.SOUTH)
+            },
+            JScrollPane(detailsPanel)
+        ).apply {
+            dividerLocation = 600
+            dividerSize = JBUI.scale(4)                // moins épais
+            border = null                              // pas de bordure blanche
+        }
         val root = JPanel(BorderLayout()).apply {
-            add(leftToolbar.component, BorderLayout.WEST)
-            add(topBar, BorderLayout.NORTH)
-            add(tabs, BorderLayout.CENTER)
-            add(summary, BorderLayout.SOUTH)
+            add(split, BorderLayout.CENTER)
         }
 
         /* ---------- 8. register ---------- */
@@ -189,10 +279,14 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
                 scanState.scaResults?.total ?: 0
             ).sum()
 
-            summary.text = when {
-                scanState.isLoading -> "Scanning…"
-                else -> "Total vulnerabilities: $total • Last scan state: ${scanState.error ?: scanState.scaResults?.scanProjectInfo?.state ?: "N/A"}"
+            // affiche le loader dans le summary
+            summary.icon = if (scanState.isLoading) loader else null
+            summary.text = if (scanState.isLoading) {
+                "Scanning…"
+            } else {
+                "Total vulnerabilities: $total • Last scan state: ${scanState.error ?: scanState.scaResults?.scanProjectInfo?.state ?: "N/A"}"
             }
+
         }
         refresh()
         scanState.addListener { ApplicationManager.getApplication().invokeLater { refresh() } }
@@ -210,4 +304,5 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
             }
         }
     }
+
 }
