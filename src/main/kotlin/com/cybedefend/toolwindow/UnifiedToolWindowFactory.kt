@@ -129,30 +129,40 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
 
                                 // 3) Update UI dans l’EDT
                                 ApplicationManager.getApplication().invokeLater {
+                                    // 0) Populate the details pane
                                     detailsPanel.showDetails(dto)
-                                    // Open file and highlight the vulnerable line
-                                    LocalFileSystem.getInstance()
-                                        .refreshAndFindFileByPath(dto.vulnerability.path)
-                                        ?.let { vf ->
-                                            val descriptor = OpenFileDescriptor(
-                                                project, vf,
-                                                dto.vulnerability.vulnerableStartLine - 1, 0
-                                            )
-                                            FileEditorManager.getInstance(project)
-                                                .openTextEditor(descriptor, true)
-                                                ?.markupModel
-                                                ?.addLineHighlighter(
-                                                    dto.vulnerability.vulnerableStartLine - 1,
-                                                    HighlighterLayer.ERROR,
-                                                    TextAttributes(
-                                                        null, null,
-                                                        JBColor.RED,
-                                                        EffectType.LINE_UNDERSCORE,
-                                                        Font.PLAIN
-                                                    )
-                                                )
-                                        }
 
+                                    // 1) Resolve the file path (relative or absolute)
+                                    val relativePath = dto.vulnerability.path
+                                    val baseDir = project.baseDir
+                                    var vf = baseDir.findFileByRelativePath(relativePath)
+                                    if (vf == null && project.basePath != null) {
+                                        val absPath = "${project.basePath}/$relativePath"
+                                        vf = LocalFileSystem.getInstance()
+                                            .refreshAndFindFileByPath(absPath)
+                                    }
+
+                                    // 2) If found, open at line & highlight
+                                    vf?.let { file ->
+                                        val descriptor = OpenFileDescriptor(
+                                            project,
+                                            file,
+                                            dto.vulnerability.vulnerableStartLine - 1,
+                                            0
+                                        )
+                                        val editor = FileEditorManager.getInstance(project)
+                                            .openTextEditor(descriptor, true)
+                                        editor?.markupModel?.addLineHighlighter(
+                                            dto.vulnerability.vulnerableStartLine - 1,
+                                            HighlighterLayer.ERROR,
+                                            TextAttributes(
+                                                null, null,
+                                                JBColor.RED,
+                                                EffectType.LINE_UNDERSCORE,
+                                                Font.PLAIN
+                                            )
+                                        )
+                                    }
                                 }
                             }
 
