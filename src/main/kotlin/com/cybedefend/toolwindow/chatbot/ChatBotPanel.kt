@@ -42,8 +42,8 @@ class ChatBotPanel(
 
     // 3) Input area and buttons
     private val inputArea = JTextArea(3, 40).apply { lineWrap = true; wrapStyleWord = true }
-    private val sendButton = JButton("Envoyer")
-    private val resetButton = JButton("Nouveau")
+    private val sendButton = JButton("Send")
+    private val resetButton = JButton("New")
 
     // Conversation state
     private var conversationId: String? = null
@@ -117,7 +117,10 @@ class ChatBotPanel(
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val convId = if (conversationId == null) {
+                val isContinuationLocal = conversationId != null
+
+                // Démarre ou continue la conversation
+                val convId = if (!isContinuationLocal) {
                     val sel = vulnCombo.selectedItem as VulnerabilityEntry
                     val req = StartConversationRequestDto(
                         projectId = projectId,
@@ -126,35 +129,47 @@ class ChatBotPanel(
                         vulnerabilityType = sel.type,
                         language = "en"
                     )
-                    chatService.startConversation(req).also { conversationId = it }
+                    val newId = chatService.startConversation(req)
+                    conversationId = newId
+                    newId
                 } else {
                     val req = AddMessageConversationRequestDto(
                         idConversation = conversationId!!,
                         message = text,
                         projectId = projectId
                     )
-                    chatService.continueConversation(conversationId!!, req)
+                    val continuedId = chatService.continueConversation(conversationId!!, req)
+                    continuedId
                 }
 
-                // Prepare streaming placeholder
-                ApplicationManager.getApplication().invokeLater { prepareStreamingLabel() }
+                // Prépare l’affichage du stream
+                ApplicationManager.getApplication().invokeLater {
+                    println("[ChatBotPanel] Preparing streaming label…")
+                    prepareStreamingLabel()
+                }
 
-                val isContinuation = conversationId != null
-
-                // Stream SSE deltas
+                // Lance le SSE en passant le texte SEULEMENT si c’est une continuation
                 chatService.streamConversation(
                     projectId,
                     convId,
-                    if (isContinuation) text else null,
-                    onDelta = { delta -> ApplicationManager.getApplication().invokeLater { updateStreaming(delta) } },
-                    onComplete = { /* you can signal fin de stream ici */ },
+                    if (isContinuationLocal) text else null,
+                    onDelta = { delta ->
+                        ApplicationManager.getApplication().invokeLater { updateStreaming(delta) }
+                    },
+                    onComplete = {
+                        println("[ChatBotPanel] ✅ onComplete")
+                    },
                     onError = { err ->
-                        ApplicationManager.getApplication()
-                            .invokeLater { appendMessage("error", err.message ?: "Stream error") }
+                        ApplicationManager.getApplication().invokeLater {
+                            appendMessage("error", err.message ?: "Stream error")
+                        }
                     }
                 )
+
             } catch (t: Throwable) {
-                ApplicationManager.getApplication().invokeLater { appendMessage("error", t.message ?: "Erreur") }
+                ApplicationManager.getApplication().invokeLater {
+                    appendMessage("error", t.message ?: "Erreur")
+                }
             } finally {
                 ApplicationManager.getApplication().invokeLater {
                     inputArea.text = ""
