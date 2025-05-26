@@ -174,7 +174,6 @@ Access via `File` → `Settings` → `Tools` → `CybeDefend`
 
 ## 🛡️ Security and Privacy
 
-- **Secure Communication**: All API calls use HTTPS encryption
 - **Local Storage**: No source code is stored on external servers
 - **Credential Management**: API keys stored using IntelliJ's secure password manager
 - **Privacy First**: Only necessary metadata is transmitted for analysis
@@ -203,36 +202,3 @@ Access via `File` → `Settings` → `Tools` → `CybeDefend`
 - Large monorepos (>10,000 files) may experience slower scan times
 - Network connectivity required for real-time scanning
 - Some vulnerability types may require specific language support
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
-
-### Development Setup
-1. Clone the repository
-2. Open in IntelliJ IDEA
-3. Ensure Java 21+ is configured
-4. Run `./gradlew runIde` to start a development instance
-
-### Building from Source
-```bash
-./gradlew buildPlugin
-```
-The built plugin will be in `build/distributions/`
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 📬 Contact
-
-- **Website**: [https://www.cybedefend.com](https://www.cybedefend.com)
-- **Email**: support@cybedefend.com
-- **Twitter**: [@CybeDefend](https://twitter.com/cybedefend)
-
----
-
-<div align="center">
-  <p>Made with ❤️ by the CybeDefend Team</p>
-  <p>Securing code, one vulnerability at a time</p>
-</div>

@@ -166,12 +166,4 @@ Future releases will include:
 - **Performance Improvements** for faster scanning and reduced memory usage
 - **Integration Extensions** with other security tools and platforms
 
-### 🙏 Acknowledgments
-
-We thank our early beta testers and the IntelliJ plugin development community for their valuable feedback and contributions to this initial release.
-
-For technical support, feature requests, or bug reports, please visit our [support portal](https://support.cybedefend.com) or [GitHub repository](https://github.com/cybedefend/cybedefend-jetbrains).
-
----
-
 *This plugin is developed and maintained by the CybeDefend team. For more information about CybeDefend's security platform, visit [www.cybedefend.com](https://www.cybedefend.com).*
