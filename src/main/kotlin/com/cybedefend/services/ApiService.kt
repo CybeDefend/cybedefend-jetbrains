@@ -13,8 +13,9 @@ import ScanResponseDto
 import StartConversationRequestDto
 import StartScanResponseDto
 import TeamInformationsResponseDto
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import okhttp3.*
 import okhttp3.MultipartBody
@@ -117,10 +118,10 @@ private interface ApiServiceApi {
  * ApiService wraps the Retrofit API and handles authentication and error mapping.
  */
 class ApiService(
-    private val authService: AuthService
+    val authService: AuthService
 ) {
     private val api: ApiServiceApi
-    private val baseUrl: String = "http://localhost:3000/" // Ensure trailing slash
+    val baseUrl: String = "http://localhost:3000/" // Ensure trailing slash
 
     init {
         println("ApiService init: Starting initialization.")

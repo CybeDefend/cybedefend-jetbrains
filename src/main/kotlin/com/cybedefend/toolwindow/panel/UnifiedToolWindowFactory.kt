@@ -1,10 +1,9 @@
-package com.cybedefend.toolwindow
+package com.cybedefend.toolwindow.panel
 
-import GetProjectVulnerabilityByIdResponseDto
 import com.cybedefend.services.ApiService
 import com.cybedefend.services.AuthService
-import com.cybedefend.services.ScanStateService
-import com.cybedefend.settings.CybeDefendSettingsConfig
+import com.cybedefend.services.scan.ScanStateService
+import com.cybedefend.toolwindow.settings.CybeDefendSettingsConfig
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.application.ApplicationManager
@@ -19,14 +18,14 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
+import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.JBColor
 import com.intellij.ui.ToolbarDecorator
 import com.intellij.ui.components.JBScrollPane
+import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.content.ContentFactory
 import com.intellij.ui.table.JBTable
-import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
-import com.intellij.util.ui.UI
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -56,7 +55,7 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
 
         /* ---------- 2. table builder with filter ---------- */
         fun buildTab(title: String, model: VulnerabilityTableModel): JComponent {
-            val table = com.intellij.ui.table.JBTable(model).apply {
+            val table = JBTable(model).apply {
                 autoCreateRowSorter = true
                 setShowGrid(false)
                 columnModel.getColumn(0).apply {
@@ -91,7 +90,7 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
             }.also { combo.selectedIndex = 0 }.let { it.also { } }
         }
 
-        val tabs = com.intellij.ui.components.JBTabbedPane().apply {
+        val tabs = JBTabbedPane().apply {
             addTab("Static Analysis", buildTab("SAST", sastModel))
             addTab("Infrastructure as Code", buildTab("IaC", iacModel))
             addTab("Software Composition Analysis", buildTab("SCA", scaModel))
@@ -173,7 +172,7 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
 
         }
 
-        val loader = com.intellij.ui.AnimatedIcon.Default()
+        val loader = AnimatedIcon.Default()
         /* ---------- 3. summary label ---------- */
         val summary = JLabel("Ready").apply { border = JBUI.Borders.empty(4, 8) }
 
@@ -238,7 +237,7 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
             }
 
         /* ---------- 6. top toolbar (settings) ---------- */
-        val dummyTable = com.intellij.ui.table.JBTable()          // ToolbarDecorator needs any component
+        val dummyTable = JBTable()          // ToolbarDecorator needs any component
         val topBar = ToolbarDecorator.createDecorator(dummyTable)
             .disableAddAction().disableRemoveAction().disableUpDownActions()
             .addExtraActions(settingsAction)                      // non-deprecated overload

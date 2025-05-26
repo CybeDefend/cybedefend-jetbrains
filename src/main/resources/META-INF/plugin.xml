@@ -29,16 +29,24 @@
         <applicationConfigurable
                 id="cybedefend.settings"
                 displayName="CybeDefend"
-                instance="com.cybedefend.settings.CybeDefendSettingsConfig"/>
+                instance="com.cybedefend.toolwindow.settings.CybeDefendSettingsConfig"/>
 
         <!-- Unified CybeDefend Tool Window, now docked at the bottom panel -->
         <toolWindow
                 id="CybeDefend"
-                anchor="bottom"
+                anchor="top"
                 icon="/icons/cybedefend.png"
-                factoryClass="com.cybedefend.toolwindow.UnifiedToolWindowFactory"
+                factoryClass="com.cybedefend.toolwindow.panel.UnifiedToolWindowFactory"
                 secondary="false"
                 canCloseContents="false"
         />
+
+        <toolWindow
+                id="CybeDefend Security Champion"
+                anchor="bottom"
+                factoryClass="com.cybedefend.toolwindow.chatbot.ChatBotToolWindowFactory"
+                icon="/icons/cybedefend.png"
+                secondary="false"
+                canCloseContents="false"/>
     </extensions>
 </idea-plugin>

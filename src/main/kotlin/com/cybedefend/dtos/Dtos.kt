@@ -12,9 +12,9 @@ enum class VulnerabilityType { CRITICAL, HIGH, MEDIUM, LOW }
 // ======================================
 
 data class AddMessageConversationRequestDto(
-    val idConversation: String,
-    val message: String,
-    val projectId: String = ""
+    var idConversation: String,
+    var message: String,
+    var projectId: String = ""
 )
 
 data class StartConversationRequestDto(

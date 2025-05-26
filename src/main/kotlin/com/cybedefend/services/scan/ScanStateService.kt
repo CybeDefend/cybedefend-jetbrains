@@ -1,10 +1,13 @@
-package com.cybedefend.services
+package com.cybedefend.services.scan
 
 import GetProjectVulnerabilitiesResponseDto
+import com.cybedefend.services.ApiService
+import com.cybedefend.services.AuthService
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.Service.Level
+import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.runBlocking
@@ -93,7 +96,7 @@ class ScanStateService(private val project: Project) {
      */
     fun startScan(projectId: String, workspaceRoot: String) {
         object : Task.Backgroundable(project, "CybeDefend: Scanning…", true) {
-            override fun run(ind: com.intellij.openapi.progress.ProgressIndicator) {
+            override fun run(ind: ProgressIndicator) {
                 runBlocking {
                     try {
                         // A) Archive
@@ -103,7 +106,7 @@ class ScanStateService(private val project: Project) {
                         // B) Initiate
                         setLoading(true)
                         ind.text = "Initiating scan…"
-                        val api = ApiService(authService = AuthService.getInstance(project))
+                        val api = ApiService(authService = AuthService.Companion.getInstance(project))
                         val resp = api.startScan(projectId, zipFile.absolutePath)
                         val scanId = resp.message
 
@@ -152,7 +155,7 @@ class ScanStateService(private val project: Project) {
      */
     private fun createWorkspaceZip(
         workspaceRoot: String,
-        ind: com.intellij.openapi.progress.ProgressIndicator
+        ind: ProgressIndicator
     ): File {
         val ignore = listOf("node_modules", ".git", "dist", "build", "out", "target", ".gradle")
         val zipFile = Files.createTempFile("cdscan-", ".zip").toFile()
@@ -180,7 +183,7 @@ class ScanStateService(private val project: Project) {
         projectId: String,
         scanId: String,
         apiService: ApiService,
-        indicator: com.intellij.openapi.progress.ProgressIndicator
+        indicator: ProgressIndicator
     ): String {
         val maxAttempts = 60
         repeat(maxAttempts) { attempt ->

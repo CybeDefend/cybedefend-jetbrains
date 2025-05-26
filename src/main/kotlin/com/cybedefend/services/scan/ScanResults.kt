@@ -1,5 +1,5 @@
 // ScanResults.kt
-package com.cybedefend.services
+package com.cybedefend.services.scan
 
 data class ScanResults(
     val scanType: String,  // "summary", "sast", "iac" ou "sca"

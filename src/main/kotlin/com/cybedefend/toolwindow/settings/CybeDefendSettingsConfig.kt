@@ -1,4 +1,4 @@
-package com.cybedefend.settings
+package com.cybedefend.toolwindow.settings
 
 import com.cybedefend.services.AuthService
 import com.intellij.openapi.options.SearchableConfigurable
