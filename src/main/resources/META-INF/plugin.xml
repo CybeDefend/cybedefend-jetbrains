@@ -34,7 +34,7 @@
         <!-- Unified CybeDefend Tool Window, now docked at the bottom panel -->
         <toolWindow
                 id="CybeDefend"
-                anchor="top"
+                anchor="bottom"
                 icon="/icons/cybedefend.png"
                 factoryClass="com.cybedefend.toolwindow.panel.UnifiedToolWindowFactory"
                 secondary="false"
@@ -43,10 +43,10 @@
 
         <toolWindow
                 id="CybeDefend Security Champion"
-                anchor="bottom"
+                anchor="left"
                 factoryClass="com.cybedefend.toolwindow.chatbot.ChatBotToolWindowFactory"
-                icon="/icons/cybedefend.png"
-                secondary="false"
+                icon="/icons/cybedefend_inverted.png"
+                secondary="true"
                 canCloseContents="false"/>
     </extensions>
 </idea-plugin>

@@ -8,19 +8,20 @@ import com.cybedefend.services.ChatBotService
 import com.cybedefend.services.scan.ScanStateService
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
+import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.JBUI
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.awt.BorderLayout
+import java.awt.FlowLayout
+import java.awt.event.KeyAdapter
+import java.awt.event.KeyEvent
 import javax.swing.*
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 
-/**
- * Panel Swing for AI chat with optional vulnerability context.
- */
 class ChatBotPanel(
     private val project: Project,
     apiService: ApiService,
@@ -29,39 +30,39 @@ class ChatBotPanel(
 
     private val chatService = ChatBotService(apiService)
 
-    // 1) Combo for selecting vulnerability context
+    // Combo vuln
     private val vulnModel = DefaultComboBoxModel<VulnerabilityEntry>()
     private val vulnCombo = com.intellij.openapi.ui.ComboBox(vulnModel)
 
-    // 2) Message container
+    // Container messages
     private val messagesContainer = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         border = JBUI.Borders.empty(4)
     }
     private val scrollPane = JBScrollPane(messagesContainer)
 
-    // 3) Input area and buttons
-    private val inputArea = JTextArea(3, 40).apply { lineWrap = true; wrapStyleWord = true }
+    // Input + boutons
+    private val inputArea = JTextArea(3, 40).apply {
+        lineWrap = true; wrapStyleWord = true
+    }
     private val sendButton = JButton("Send")
     private val resetButton = JButton("New")
 
-    // Conversation state
     private var conversationId: String? = null
-    private var streamingLabel: JLabel? = null
-    private val streamBuffer = StringBuilder()
+    private var streamBuffer = StringBuilder()
 
     init {
-        // North: vulnerability combo + reset
+        // Nord
         val north = JPanel(BorderLayout(4, 4)).apply {
             add(vulnCombo, BorderLayout.CENTER)
             add(resetButton, BorderLayout.EAST)
         }
         add(north, BorderLayout.NORTH)
 
-        // Center: messages
+        // Centre
         add(scrollPane, BorderLayout.CENTER)
 
-        // South: input + send
+        // Sud
         val south = JPanel(BorderLayout(4, 4)).apply {
             add(JBScrollPane(inputArea), BorderLayout.CENTER)
             add(sendButton, BorderLayout.EAST)
@@ -70,57 +71,91 @@ class ChatBotPanel(
 
         border = JBUI.Borders.empty(8)
 
-        // Button setups
+        // Activation bouton
         sendButton.isEnabled = false
         inputArea.document.addDocumentListener(SimpleDocumentListener {
             sendButton.isEnabled = inputArea.text.trim().isNotEmpty()
         })
+
+        // Envoi sur Entrée
+        inputArea.addKeyListener(object : KeyAdapter() {
+            override fun keyPressed(e: KeyEvent) {
+                if (e.keyCode == KeyEvent.VK_ENTER && !e.isShiftDown) {
+                    e.consume()
+                    if (sendButton.isEnabled) sendButton.doClick()
+                }
+            }
+        })
+
         sendButton.addActionListener { onSendMessage() }
         resetButton.addActionListener { onResetConversation() }
 
-        // Load and refresh vulnerabilities
         loadVulnerabilities()
         ScanStateService.getInstance(project).addListener {
             ApplicationManager.getApplication().invokeLater { loadVulnerabilities() }
         }
     }
 
-    /** Populate the vulnerability combo from ScanStateService data. */
+    /** Simple Markdown → HTML (titres, gras, italique, code) */
+    private fun markdownToHtml(md: String): String {
+        // Échappement basique
+        var t = md
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+
+        // Titres
+        t = t.replace(Regex("(?m)^(#{1,6})\\s*(.+)$")) {
+            val lvl = it.groupValues[1].length.coerceIn(1,6)
+            "<h$lvl>${it.groupValues[2]}</h$lvl>"
+        }
+        // Gras
+        t = t.replace(Regex("\\*\\*(.*?)\\*\\*"), "<b>$1</b>")
+        // Italique
+        t = t.replace(Regex("\\*(.*?)\\*"), "<i>$1</i>")
+        // Inline code
+        t = t.replace(Regex("`([^`]+)`"), "<code>$1</code>")
+        // Fenced code
+        t = t.replace(Regex("(?m)```[\\s\\S]*?```")) {
+            "<pre>${it.value.removeSurrounding("```")}</pre>"
+        }
+        // Sauts de ligne
+        return t.replace("\n", "<br/>")
+    }
+
+    /** Charge la combo vulnérabilités */
     private fun loadVulnerabilities() {
         vulnModel.removeAllElements()
-        vulnModel.addElement(VulnerabilityEntry(null, null, "Aucune vulnérabilité"))
+        vulnModel.addElement(VulnerabilityEntry(null, null, "No vuln"))
         val state = ScanStateService.getInstance(project)
         listOfNotNull(state.sastResults, state.iacResults, state.scaResults)
             .flatMap { it.vulnerabilities }
             .forEach { v ->
                 val name = v.vulnerability.name.takeIf { !it.isNullOrBlank() } ?: v.id
-                val path = v.path
-                vulnModel.addElement(
-                    VulnerabilityEntry(
-                        v.id,
-                        v.vulnerability.vulnerabilityType,
-                        "$name (${path.substringAfterLast('/')})"
-                    )
-                )
+                val short = v.path.substringAfterLast('/')
+                vulnModel.addElement(VulnerabilityEntry(
+                    v.id, v.vulnerability.vulnerabilityType, "$name ($short)"
+                ))
             }
         vulnCombo.selectedIndex = 0
     }
 
-    /** Handle send button: start/continue conversation, then SSE stream. */
+    /** Envoi + streaming */
     private fun onSendMessage() {
         val text = inputArea.text.trim()
         if (text.isEmpty()) return
 
-        sendButton.isEnabled = false
+        // Efface immédiatement
+        inputArea.text = ""
         inputArea.isEditable = false
-        appendMessage("user", text)
+        sendButton.isEnabled = false
+
+        appendBubble("user", text)
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val isContinuationLocal = conversationId != null
-
-                // Démarre ou continue la conversation
-                val convId = if (!isContinuationLocal) {
+                val isCont = conversationId != null
+                val convId = if (!isCont) {
                     val sel = vulnCombo.selectedItem as VulnerabilityEntry
                     val req = StartConversationRequestDto(
                         projectId = projectId,
@@ -129,87 +164,84 @@ class ChatBotPanel(
                         vulnerabilityType = sel.type,
                         language = "en"
                     )
-                    val newId = chatService.startConversation(req)
-                    conversationId = newId
-                    newId
+                    chatService.startConversation(req).also { conversationId = it }
                 } else {
                     val req = AddMessageConversationRequestDto(
                         idConversation = conversationId!!,
                         message = text,
                         projectId = projectId
                     )
-                    val continuedId = chatService.continueConversation(conversationId!!, req)
-                    continuedId
+                    chatService.continueConversation(conversationId!!, req)
                 }
 
-                // Prépare l’affichage du stream
+                // Placeholder de stream
                 ApplicationManager.getApplication().invokeLater {
-                    println("[ChatBotPanel] Preparing streaming label…")
-                    prepareStreamingLabel()
+                    streamBuffer.clear()
+                    appendBubble("assistant", "") // vide pour commencer le flux
                 }
 
-                // Lance le SSE en passant le texte SEULEMENT si c’est une continuation
                 chatService.streamConversation(
-                    projectId,
-                    convId,
-                    if (isContinuationLocal) text else null,
-                    onDelta = { delta ->
-                        ApplicationManager.getApplication().invokeLater { updateStreaming(delta) }
+                    projectId, convId,
+                    if (isCont) text else null,
+                    onDelta = { d ->
+                        ApplicationManager.getApplication().invokeLater {
+                            updateLastBubble(d)
+                        }
                     },
-                    onComplete = {
-                        println("[ChatBotPanel] ✅ onComplete")
-                    },
+                    onComplete = { /* rien */ },
                     onError = { err ->
                         ApplicationManager.getApplication().invokeLater {
-                            appendMessage("error", err.message ?: "Stream error")
+                            appendBubble("error", err.message ?: "Stream error")
                         }
                     }
                 )
-
             } catch (t: Throwable) {
                 ApplicationManager.getApplication().invokeLater {
-                    appendMessage("error", t.message ?: "Erreur")
+                    appendBubble("error", t.message ?: "Erreur")
                 }
             } finally {
                 ApplicationManager.getApplication().invokeLater {
-                    inputArea.text = ""
                     inputArea.isEditable = true
                 }
             }
         }
     }
 
-    /** Add an empty label to show incoming stream. */
-    private fun prepareStreamingLabel() {
-        streamBuffer.clear()
-        streamingLabel = JLabel().apply { border = JBUI.Borders.empty(4) }
-        messagesContainer.add(streamingLabel)
+    /** Ajoute une bulle complète (user / assistant / erreur) */
+    private fun appendBubble(role: String, content: String) {
+        val html = markdownToHtml(content)
+        val lbl = JLabel("<html>$html</html>").apply {
+            isOpaque = true
+            background = when (role) {
+                "user"      -> JBColor(0x3a6ea5, 0x3a6ea5)
+                "assistant" -> JBColor(0x4a4a4a, 0x4a4a4a)
+                else        -> JBColor.RED
+            }
+            foreground = JBColor.foreground()
+            border = JBUI.Borders.empty(8,12)
+        }
+        val align = if (role=="user") FlowLayout.RIGHT else FlowLayout.LEFT
+        val panel = JPanel(FlowLayout(align)).apply {
+            isOpaque = false
+            add(lbl)
+        }
+        messagesContainer.add(panel)
         messagesContainer.revalidate()
+        SwingUtilities.invokeLater {
+            scrollPane.verticalScrollBar.value = scrollPane.verticalScrollBar.maximum
+        }
     }
 
-    /** Append each delta chunk to the streaming label. */
-    private fun updateStreaming(delta: String) {
+    /** Met à jour la dernière bulle (streaming) */
+    private fun updateLastBubble(delta: String) {
         streamBuffer.append(delta)
-        streamingLabel?.text = "<html>${streamBuffer.toString().replace("\n", "<br/>")}</html>"
-        SwingUtilities.invokeLater {
-            scrollPane.verticalScrollBar.value = scrollPane.verticalScrollBar.maximum
+        // Retire la dernière bulle (vide) et la remplace
+        if (messagesContainer.componentCount>0) {
+            messagesContainer.remove(messagesContainer.componentCount-1)
         }
+        appendBubble("assistant", streamBuffer.toString())
     }
 
-    /** Append a finished message bubble. */
-    private fun appendMessage(role: String, content: String) {
-        val safe = content.replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br/>")
-        val lbl = JLabel("<html><b>${role.replaceFirstChar { it.uppercase() }}:</b> $safe</html>").apply {
-            border = JBUI.Borders.empty(4)
-        }
-        messagesContainer.add(lbl)
-        messagesContainer.revalidate()
-        SwingUtilities.invokeLater {
-            scrollPane.verticalScrollBar.value = scrollPane.verticalScrollBar.maximum
-        }
-    }
-
-    /** Reset conversation state and clear UI. */
     private fun onResetConversation() {
         conversationId = null
         messagesContainer.removeAll()
@@ -217,16 +249,14 @@ class ChatBotPanel(
         messagesContainer.repaint()
     }
 
-    /** Data class for combo entries. */
-    private data class VulnerabilityEntry(val id: String?, val type: String?, val label: String) {
+    private data class VulnerabilityEntry(val id:String?, val type:String?, val label:String) {
         override fun toString() = label
     }
 
-    /** Simplified DocumentListener to toggle send button. */
     private fun interface SimpleDocumentListener : DocumentListener {
         fun onChange()
-        override fun insertUpdate(e: DocumentEvent) = onChange()
-        override fun removeUpdate(e: DocumentEvent) = onChange()
-        override fun changedUpdate(e: DocumentEvent) = onChange()
+        override fun insertUpdate(e:DocumentEvent)=onChange()
+        override fun removeUpdate(e:DocumentEvent)=onChange()
+        override fun changedUpdate(e:DocumentEvent)=onChange()
     }
 }
