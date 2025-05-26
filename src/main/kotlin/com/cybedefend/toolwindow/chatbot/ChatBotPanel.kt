@@ -15,7 +15,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.awt.BorderLayout
+import java.awt.Component
+import java.awt.Dimension
 import java.awt.FlowLayout
+import java.awt.Graphics
+import java.awt.Graphics2D
 import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
 import javax.swing.*
@@ -39,7 +43,9 @@ class ChatBotPanel(
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         border = JBUI.Borders.empty(4)
     }
-    private val scrollPane = JBScrollPane(messagesContainer)
+    private val scrollPane = JBScrollPane(messagesContainer).apply {
+        horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+    }
 
     // Input + boutons
     private val inputArea = JTextArea(3, 40).apply {
@@ -106,7 +112,7 @@ class ChatBotPanel(
 
         // Titres
         t = t.replace(Regex("(?m)^(#{1,6})\\s*(.+)$")) {
-            val lvl = it.groupValues[1].length.coerceIn(1,6)
+            val lvl = it.groupValues[1].length.coerceIn(1, 6)
             "<h$lvl>${it.groupValues[2]}</h$lvl>"
         }
         // Gras
@@ -133,9 +139,11 @@ class ChatBotPanel(
             .forEach { v ->
                 val name = v.vulnerability.name.takeIf { !it.isNullOrBlank() } ?: v.id
                 val short = v.path.substringAfterLast('/')
-                vulnModel.addElement(VulnerabilityEntry(
-                    v.id, v.vulnerability.vulnerabilityType, "$name ($short)"
-                ))
+                vulnModel.addElement(
+                    VulnerabilityEntry(
+                        v.id, v.vulnerability.vulnerabilityType, "$name ($short)"
+                    )
+                )
             }
         vulnCombo.selectedIndex = 0
     }
@@ -210,34 +218,85 @@ class ChatBotPanel(
     /** Ajoute une bulle complète (user / assistant / erreur) */
     private fun appendBubble(role: String, content: String) {
         val html = markdownToHtml(content)
-        val lbl = JLabel("<html>$html</html>").apply {
-            isOpaque = true
-            background = when (role) {
-                "user"      -> JBColor(0x3a6ea5, 0x3a6ea5)
-                "assistant" -> JBColor(0x4a4a4a, 0x4a4a4a)
-                else        -> JBColor.RED
-            }
-            foreground = JBColor.foreground()
-            border = JBUI.Borders.empty(8,12)
-        }
-        val align = if (role=="user") FlowLayout.RIGHT else FlowLayout.LEFT
-        val panel = JPanel(FlowLayout(align)).apply {
+        val pane = JEditorPane(
+            "text/html",
+            // un div avec padding et overflow caché pour un rendu « bulle »
+            """
+        <html>
+          <body style="
+            margin:0; padding:0;
+            font-family: ${UIManager.getFont("Label.font").family};
+            font-size: ${UIManager.getFont("Label.font").size}pt;
+          ">
+            <div style='
+              white-space: pre-wrap;
+              word-wrap: break-word;
+              padding: 8px 12px;
+            '>$html</div>
+          </body>
+        </html>
+        """.trimIndent()
+        ).apply {
+            isEditable = false
             isOpaque = false
-            add(lbl)
+            // respecte les polices IntelliJ
+            putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, true)
+            // pour que la bulle se redimensionne en hauteur
+            maximumSize = Dimension(Int.MAX_VALUE, preferredSize.height)
         }
-        messagesContainer.add(panel)
+
+        // panel contenant la bulle, avec fond arrondi
+        // À la place de votre ancien "panel = JPanel(BorderLayout()).apply { ... }"
+        val bubble = object : JPanel(BorderLayout()) {
+            override fun getPreferredSize(): Dimension {
+                val d = super.getPreferredSize()
+                // largeur max 400px, hauteur naturelle
+                return Dimension(d.width.coerceAtMost(400), d.height)
+            }
+
+            override fun paintComponent(g: Graphics) {
+                super.paintComponent(g)
+                // votre code de bulle arrondie (couleurs, etc.)
+                val g2 = (g as Graphics2D).create()
+                try {
+                    val c = when (role) {
+                        "user" -> JBColor(0x3a6ea5, 0x3a6ea5)
+                        "assistant" -> JBColor(0x4a4a4a, 0x4a4a4a)
+                        else -> JBColor.RED
+                    }
+                    g2.color = c
+                    g2.fillRoundRect(0, 0, width, height, 16, 16)
+                } finally {
+                    g2.dispose()
+                }
+            }
+        }.apply {
+            isOpaque = false
+            border = JBUI.Borders.empty(4)
+            add(pane, BorderLayout.CENTER)
+        }
+
+
+        // wrapper pour aligner à droite/gauche
+        val alignPanel = JPanel(FlowLayout(if (role == "user") FlowLayout.RIGHT else FlowLayout.LEFT)).apply {
+            isOpaque = false
+            add(bubble)
+        }
+
+        messagesContainer.add(alignPanel)
         messagesContainer.revalidate()
         SwingUtilities.invokeLater {
             scrollPane.verticalScrollBar.value = scrollPane.verticalScrollBar.maximum
         }
     }
 
+
     /** Met à jour la dernière bulle (streaming) */
     private fun updateLastBubble(delta: String) {
         streamBuffer.append(delta)
         // Retire la dernière bulle (vide) et la remplace
-        if (messagesContainer.componentCount>0) {
-            messagesContainer.remove(messagesContainer.componentCount-1)
+        if (messagesContainer.componentCount > 0) {
+            messagesContainer.remove(messagesContainer.componentCount - 1)
         }
         appendBubble("assistant", streamBuffer.toString())
     }
@@ -249,14 +308,14 @@ class ChatBotPanel(
         messagesContainer.repaint()
     }
 
-    private data class VulnerabilityEntry(val id:String?, val type:String?, val label:String) {
+    private data class VulnerabilityEntry(val id: String?, val type: String?, val label: String) {
         override fun toString() = label
     }
 
     private fun interface SimpleDocumentListener : DocumentListener {
         fun onChange()
-        override fun insertUpdate(e:DocumentEvent)=onChange()
-        override fun removeUpdate(e:DocumentEvent)=onChange()
-        override fun changedUpdate(e:DocumentEvent)=onChange()
+        override fun insertUpdate(e: DocumentEvent) = onChange()
+        override fun removeUpdate(e: DocumentEvent) = onChange()
+        override fun changedUpdate(e: DocumentEvent) = onChange()
     }
 }
