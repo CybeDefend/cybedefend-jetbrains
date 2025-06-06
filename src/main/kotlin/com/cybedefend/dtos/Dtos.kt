@@ -570,9 +570,8 @@ data class ScanResponseDto(
 )
 
 data class StartScanResponseDto(
-    val success: Boolean,
-    val message: String,
-    val detectedLanguages: List<String>? = null
+    val url: String,
+    val scanId: String
 )
 
 // End of DTOs

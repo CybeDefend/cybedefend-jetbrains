@@ -13,17 +13,14 @@ import ScanResponseDto
 import StartConversationRequestDto
 import StartScanResponseDto
 import TeamInformationsResponseDto
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.*
-import okhttp3.MultipartBody
-import retrofit2.http.Multipart
 import retrofit2.http.POST
-import retrofit2.http.Part
 import retrofit2.http.Path
+import retrofit2.Response
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import retrofit2.HttpException
 import retrofit2.Retrofit
@@ -37,12 +34,17 @@ import java.util.concurrent.TimeUnit
  * Retrofit API definitions matching the backend endpoints.
  */
 private interface ApiServiceApi {
-    @Multipart
     @POST("project/{projectId}/scan/start")
     suspend fun startScan(
-        @Path("projectId") projectId: String,
-        @Part scan: MultipartBody.Part
+        @Path("projectId") projectId: String
     ): StartScanResponseDto
+
+    @PUT
+    suspend fun uploadFile(
+        @Url url: String,
+        @Body body: RequestBody,
+        @HeaderMap headers: Map<String, String>
+    ): Response<Void>
 
     @GET("project/{projectId}/results/{scanType}")
     suspend fun getScanResults(
@@ -160,17 +162,42 @@ class ApiService(
         println("ApiService init: Retrofit API interface created. Initialization complete.")
     }
 
-    suspend fun startScan(projectId: String, zipFilePath: String): StartScanResponseDto =
+    suspend fun startScan(projectId: String): StartScanResponseDto =
         withContext(Dispatchers.IO) {
             try {
-                val file = File(zipFilePath)
-                val requestFile = file.asRequestBody("application/zip".toMediaTypeOrNull())
-                val body = MultipartBody.Part.createFormData("scan", file.name, requestFile)
-                api.startScan(projectId, body) // Corrected to pass projectId
+                api.startScan(projectId)
             } catch (e: Throwable) {
                 throw mapToApiError(e, "startScan", "ProjectId: $projectId")
             }
         }
+
+    suspend fun uploadFileToSignedUrl(url: String, file: File) = withContext(Dispatchers.IO) {
+        try {
+            val requestBody = file.asRequestBody("application/zip".toMediaTypeOrNull())
+
+            // Déterminer les en-têtes nécessaires en fonction du fournisseur de cloud
+            val headers = mutableMapOf("Content-Type" to "application/zip")
+            if (url.contains("storage.googleapis.com")) {
+                headers["x-goog-if-generation-match"] = "0"
+                headers["x-goog-content-length-range"] = "0,5368709120"
+            }
+
+            val response = api.uploadFile(
+                url = url,
+                body = requestBody,
+                headers = headers
+            )
+
+            // La version corrigée
+            if (!response.isSuccessful) {
+                // response.code() est une fonction, response.errorBody() aussi.
+                val errorMsg = response.errorBody()?.string() ?: "Unknown error"
+                throw IOException("Upload failed with code ${response.code()}: $errorMsg")
+            }
+        } catch (e: Throwable) {
+            throw mapToApiError(e, "uploadFileToSignedUrl")
+        }
+    }
 
     suspend fun getScanResults(
         projectId: String,
@@ -207,7 +234,10 @@ class ApiService(
             }
         }
 
-    suspend fun startConversation(projectId: String, request: StartConversationRequestDto): InitiateConversationResponse = // Added projectId
+    suspend fun startConversation(
+        projectId: String,
+        request: StartConversationRequestDto
+    ): InitiateConversationResponse = // Added projectId
         withContext(Dispatchers.IO) {
             try {
                 api.startConversation(projectId, request)
@@ -318,22 +348,21 @@ class ApiService(
                 println("Mapped HttpException ($code) for \'$operation\': $errorMessage")
                 Exception(errorMessage, error)
             }
+
             is IOException -> {
                 // This often means network connectivity issues or server not reachable
-                val networkErrorMessage = "Network Error for \'$operation\': Could not reach server at $baseUrl. Please check your internet connection and VPN settings. (Context: $context)"
+                val networkErrorMessage =
+                    "Network Error for \'$operation\': Could not reach server at $baseUrl. Please check your internet connection and VPN settings. (Context: $context)"
                 println("Mapped IOException for \'$operation\': $networkErrorMessage")
                 Exception(networkErrorMessage, error)
             }
+
             else -> {
-                val unexpectedErrorMessage = "Unexpected Error during \'$operation\': ${error.message ?: "Unknown error"}. (Context: $context)"
+                val unexpectedErrorMessage =
+                    "Unexpected Error during \'$operation\': ${error.message ?: "Unknown error"}. (Context: $context)"
                 println("Mapped Unexpected Error for \'$operation\': $unexpectedErrorMessage")
                 Exception(unexpectedErrorMessage, error)
             }
         }
     }
 }
-
-// Add missing import for TimeUnit if not present at the top of the file
-// import java.util.concurrent.TimeUnit
-// Add missing import for HttpLoggingInterceptor if you uncomment it
-// import okhttp3.logging.HttpLoggingInterceptor

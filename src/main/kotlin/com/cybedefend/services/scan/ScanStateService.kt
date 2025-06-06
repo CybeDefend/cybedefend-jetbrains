@@ -99,18 +99,22 @@ class ScanStateService(private val project: Project) {
             override fun run(ind: ProgressIndicator) {
                 runBlocking {
                     try {
-                        // A) Archive
+                        // A) Archive (inchangé)
                         ind.text = "Archiving project…"
                         val zipFile = createWorkspaceZip(workspaceRoot, ind)
 
-                        // B) Initiate
                         setLoading(true)
-                        ind.text = "Initiating scan…"
-                        val api = ApiService(authService = AuthService.Companion.getInstance(project))
-                        val resp = api.startScan(projectId, zipFile.absolutePath)
-                        val scanId = resp.message
+                        ind.text = "Initiating scan..."
+                        val api = ApiService(authService = AuthService.getInstance(project))
 
-                        // C) Poll
+                        val startScanResponse = api.startScan(projectId)
+                        val signedUrl = startScanResponse.url
+                        val scanId = startScanResponse.scanId
+
+                        ind.text = "Uploading project files..."
+                        api.uploadFileToSignedUrl(signedUrl, zipFile)
+
+                        // C) Poll du statut (inchangé, mais utilise le scanId de l'étape 1)
                         ind.text = "Waiting for scan to complete…"
                         val final = pollScanStatus(projectId, scanId, api, ind)
                         if (!final.contains("COMPLETED")) throw Exception("Final status: $final")
@@ -190,7 +194,7 @@ class ScanStateService(private val project: Project) {
             if (indicator.isCanceled) throw InterruptedException("Cancelled")
             indicator.text2 = "Polling status (${attempt + 1}/$maxAttempts)…"
 
-            val raw    = runBlocking { apiService.getScanStatus(projectId, scanId).state }
+            val raw = runBlocking { apiService.getScanStatus(projectId, scanId).state }
             val status = raw.uppercase()        // normalise once
 
             if (status in listOf("COMPLETED", "COMPLETED_DEGRADED", "FAILED")) {
