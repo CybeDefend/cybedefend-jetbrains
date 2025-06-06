@@ -6,6 +6,7 @@ plugins {
 }
 
 group = "com.cybedefend"
+
 version = "1.0.0"
 
 repositories {
@@ -20,7 +21,7 @@ dependencies {
     // --- runtime libs ---
     implementation("com.squareup.okhttp3:okhttp:4.11.0")
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")   // <-- add
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0") // <-- add
     implementation("com.google.code.gson:gson:2.11.0")
 
     // --- KotlinX (si vraiment nécessaire) ---
@@ -30,16 +31,17 @@ dependencies {
 }
 
 configurations.all {
-    resolutionStrategy.force("org.jetbrains.kotlin:kotlin-stdlib:1.9.25",
-        "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.25",
-        "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.25"
+    resolutionStrategy.force(
+            "org.jetbrains.kotlin:kotlin-stdlib:1.9.25",
+            "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.25",
+            "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.25"
     )
 }
 
 intellijPlatform {
     pluginConfiguration {
         ideaVersion {
-            sinceBuild = "242"                  // build 242 = 2024.2
+            sinceBuild = "242" // build 242 = 2024.2
         }
         changeNotes = """
       Initial version – appel API MonScope
@@ -52,7 +54,5 @@ tasks {
         sourceCompatibility = "21"
         targetCompatibility = "21"
     }
-    withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-        kotlinOptions.jvmTarget = "21"
-    }
+    withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> { kotlinOptions.jvmTarget = "21" }
 }

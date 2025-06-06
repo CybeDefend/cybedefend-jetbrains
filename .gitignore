@@ -17,6 +17,9 @@ build
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
 
+bin/
+ides/
+
 # Package Files #
 *.jar
 *.war
