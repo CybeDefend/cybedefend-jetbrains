@@ -1,6 +1,9 @@
 package com.cybedefend.services.scan
 
-import GetProjectVulnerabilitiesResponseDto
+import DetailedVulnerability
+import GetProjectSastVulnerabilitiesResponse
+import VulnerabilityDtoResponse
+import VulnerabilitySastIacResponse
 import com.cybedefend.services.ApiService
 import com.cybedefend.services.AuthService
 import com.intellij.notification.NotificationGroupManager
@@ -11,6 +14,7 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.runBlocking
+import toUnified
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
@@ -31,11 +35,16 @@ class ScanStateService(private val project: Project) {
     var error: String? = null
         private set
 
-    var sastResults: GetProjectVulnerabilitiesResponseDto? = null
+    var sastResults: List<DetailedVulnerability>? = null
         private set
-    var iacResults: GetProjectVulnerabilitiesResponseDto? = null
+    var iacResults: List<DetailedVulnerability>? = null
         private set
-    var scaResults: GetProjectVulnerabilitiesResponseDto? = null
+    var scaResults: List<DetailedVulnerability>? = null
+        private set
+
+    var totalVulnerabilities: Int = 0
+        private set
+    var lastScanState: String? = "N/A"
         private set
 
     private val listeners = mutableSetOf<() -> Unit>()
@@ -64,21 +73,31 @@ class ScanStateService(private val project: Project) {
     }
 
     fun updateResults(
-        sast: GetProjectVulnerabilitiesResponseDto,
-        iac: GetProjectVulnerabilitiesResponseDto,
-        sca: GetProjectVulnerabilitiesResponseDto
+        sast: List<DetailedVulnerability>,
+        iac: List<DetailedVulnerability>,
+        sca: List<DetailedVulnerability>,
+        // On passe une des réponses originales pour récupérer les méta-données
+        originalResponse: GetProjectSastVulnerabilitiesResponse?
     ) {
         sastResults = sast
         iacResults = iac
         scaResults = sca
+
+        // On calcule et stocke les nouvelles informations
+        totalVulnerabilities = sast.size + iac.size + sca.size
+        lastScanState = originalResponse?.scanProjectInfo?.state ?: "COMPLETED"
+
         error = null
         isLoading = false
         notifyListeners()
     }
 
+    // Assurez-vous aussi de réinitialiser les nouvelles propriétés
     fun reset() {
         isLoading = false
         error = null
+        totalVulnerabilities = 0 // <-- AJOUTER
+        lastScanState = "N/A"    // <-- AJOUTER
         clearResults()
         notifyListeners()
     }
@@ -121,24 +140,19 @@ class ScanStateService(private val project: Project) {
 
                         // D) Fetch
                         ind.text = "Fetching SAST results…"
-                        val s = api.getScanResults(projectId, "sast")
+                        val sastResponse = api.getSastResults(projectId)
+                        val sastVulns = sastResponse.vulnerabilities.mapNotNull { it.base?.toUnified() }
+
                         ind.text = "Fetching IaC results…"
-                        val i = api.getScanResults(projectId, "iac")
+                        val iacResponse = api.getIacResults(projectId)
+                        val iacVulns = iacResponse.vulnerabilities.mapNotNull { it.base?.toUnified() }
+
                         ind.text = "Fetching SCA results…"
-                        val c = api.getScanResults(projectId, "sca")
+                        val scaResponse = api.getScaResults(projectId)
+                        val scaVulns = scaResponse.vulnerabilities.map { it.toUnified() }
 
                         // E) Update UI
-                        updateResults(s, i, c)
-
-                        // F) Notification
-                        NotificationGroupManager.getInstance()
-                            .getNotificationGroup("CybeDefend")
-                            .createNotification(
-                                "Scan completed",
-                                "Vulnerabilities found: ${s.total + i.total + c.total}",
-                                NotificationType.INFORMATION
-                            ).notify(project)
-
+                        updateResults(sastVulns, iacVulns, scaVulns, sastResponse)
                     } catch (e: Exception) {
                         setError(e.message ?: "Unknown error")
                         NotificationGroupManager.getInstance()
@@ -203,5 +217,28 @@ class ScanStateService(private val project: Project) {
             TimeUnit.SECONDS.sleep(5)
         }
         throw Exception("Polling timeout after $maxAttempts attempts")
+    }
+
+    // Cette fonction convertit la nouvelle structure vers l'ancienne, que votre UI comprend
+    private fun VulnerabilitySastIacResponse.toUnified(): DetailedVulnerability {
+        return VulnerabilityDtoResponse(
+            id = this.id,
+            projectId = this.projectId,
+            createdAt = this.createdAt,
+            updateAt = this.updateAt,
+            timeToFix = this.timeToFix,
+            currentState = this.currentState,
+            currentSeverity = this.currentSeverity,
+            currentPriority = this.currentPriority,
+            contextualExplanation = this.contextualExplanation,
+            language = this.language,
+            path = this.path,
+            vulnerableStartLine = this.vulnerableStartLine,
+            vulnerableEndLine = this.vulnerableEndLine,
+            vulnerability = this.vulnerability!!, // Assumant non-nul pour la vue
+            historyItems = this.historyItems?.items ?: emptyList(),
+            codeSnippets = this.codeSnippets ?: emptyList(),
+            vulnerabilityType = this.vulnerabilityType
+        )
     }
 }

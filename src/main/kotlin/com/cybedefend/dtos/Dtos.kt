@@ -264,26 +264,6 @@ data class ScanProjectInfoDto(
     val scanType: String?
 )
 
-typealias DetailedVulnerability = VulnerabilityDtoResponse
-
-data class GetProjectVulnerabilitiesResponseDto(
-    val projectId: String,
-    val projectName: String,
-    val page: Int,
-    val limit: Int,
-    val totalPages: Int,
-    val sort: String,
-    val order: String,
-    val severity: List<String>,
-    val status: List<String>,
-    val language: String,
-    val priority: List<String>,
-    val vulnerabilities: List<DetailedVulnerability>,      // << was List<Any>
-    val total: Int,
-    val scanProjectInfo: ScanProjectInfoDto,
-    val vulnCountByType: CountVulnerabilitiesCountByType
-)
-
 // Detailed vulnerability response types
 
 data class UserDto(
@@ -370,26 +350,6 @@ data class DataFlowItemDto(
     val order: Int
 )
 
-open class VulnerabilityDtoResponse(
-    open val id: String,
-    open val projectId: String,
-    open val createdAt: String,
-    open val updateAt: String,
-    open val timeToFix: String? = null,
-    open val currentState: String,
-    open val currentSeverity: String,
-    open val currentPriority: String,
-    open val contextualExplanation: String? = null,
-    open val language: String,
-    open val path: String,
-    open val vulnerableStartLine: Int,
-    open val vulnerableEndLine: Int,
-    open val vulnerability: VulnerabilityMetadataDto,
-    open val historyItems: List<HistoryItemDto>,
-    open val codeSnippets: List<CodeSnippetDto>,
-    open val vulnerabilityType: String
-)
-
 data class VulnerabilitySastDto(
     override val id: String,
     override val projectId: String,
@@ -430,81 +390,6 @@ data class VulnerabilityIacDto(
     override val codeSnippets: List<CodeSnippetDto>,
     override val vulnerabilityType: String
 ) : VulnerabilityDtoResponse(id, projectId, createdAt, updateAt, timeToFix, currentState, currentSeverity, currentPriority, contextualExplanation, language, path, vulnerableStartLine, vulnerableEndLine, vulnerability, historyItems, codeSnippets, vulnerabilityType)
-
-data class VulnerabilityScaMetadataDto(
-    val cve: String,
-    val internalId: String,
-    val summary: String,
-    val severityGh: String,
-    val schemaVersion: String,
-    val modifiedAt: String? = null,
-    val publishedAt: String? = null,
-    val githubReviewedAt: String? = null,
-    val nvdPublishedAt: String? = null,
-    val aliases: List<VulnerabilityScaAliasDto> = emptyList(),
-    val cwes: List<VulnerabilityScaCweDto> = emptyList(),
-    val references: List<VulnerabilityScaReferenceDto> = emptyList(),
-    val severities: List<VulnerabilityScaSeverityDto> = emptyList(),
-    val packages: List<VulnerabilityScaPackageDto> = emptyList(),
-    override val id: String,
-    override val projectId: String,
-    override val createdAt: String,
-    override val updateAt: String,
-    override val timeToFix: String? = null,
-    override val currentState: String,
-    override val currentSeverity: String,
-    override val currentPriority: String,
-    override val contextualExplanation: String? = null,
-    override val language: String,
-    override val path: String,
-    override val vulnerableStartLine: Int,
-    override val vulnerableEndLine: Int,
-    override val vulnerability: VulnerabilityMetadataDto,
-    override val historyItems: List<HistoryItemDto>,
-    override val codeSnippets: List<CodeSnippetDto>,
-    override val vulnerabilityType: String = "sca"
-) : VulnerabilityDtoResponse(id, projectId, createdAt, updateAt, timeToFix, currentState, currentSeverity, currentPriority, contextualExplanation, language, path, vulnerableStartLine, vulnerableEndLine, vulnerability, historyItems, codeSnippets, vulnerabilityType)
-
-data class VulnerabilityScaDto(
-    val packageData: ScaDetectedLibraryDto?,
-    val cvssScore: Double?,
-    override val id: String,
-    override val projectId: String,
-    override val createdAt: String,
-    override val updateAt: String,
-    override val timeToFix: String? = null,
-    override val currentState: String,
-    override val currentSeverity: String,
-    override val currentPriority: String,
-    override val contextualExplanation: String? = null,
-    override val language: String,
-    override val path: String,
-    override val vulnerableStartLine: Int,
-    override val vulnerableEndLine: Int,
-    override val vulnerability: VulnerabilityMetadataDto,
-    override val historyItems: List<HistoryItemDto>,
-    override val codeSnippets: List<CodeSnippetDto>,
-    override val vulnerabilityType: String = "sca"
-) : VulnerabilityDtoResponse(
-    id,
-    projectId,
-    createdAt,
-    updateAt,
-    timeToFix,
-    currentState,
-    currentSeverity,
-    currentPriority,
-    contextualExplanation,
-    language,
-    path,
-    vulnerableStartLine,
-    vulnerableEndLine,
-    vulnerability,
-    historyItems,
-    codeSnippets,
-    vulnerabilityType
-)
-
 
 data class GetProjectVulnerabilityByIdResponseDto(
     val projectId: String,
@@ -575,3 +460,218 @@ data class StartScanResponseDto(
 )
 
 // End of DTOs
+
+// Migration GRPC to DTOs
+
+// -----------------------------------------------------------------
+// 1. MODÈLE POUR L'INTERFACE UTILISATEUR (NE CHANGE PAS BEAUCOUP)
+// C'est notre format interne unifié. C'est une "open class" car d'autres DTOs en héritaient.
+// On la garde ainsi pour limiter les régressions.
+// -----------------------------------------------------------------
+typealias DetailedVulnerability = VulnerabilityDtoResponse
+
+open class VulnerabilityDtoResponse(
+    open val id: String,
+    open val projectId: String,
+    open val createdAt: String,
+    open val updateAt: String,
+    open val timeToFix: String?,
+    open val currentState: String,
+    open val currentSeverity: String,
+    open val currentPriority: String,
+    open val contextualExplanation: String?,
+    open val language: String,
+    open val path: String,
+    open val vulnerableStartLine: Int,
+    open val vulnerableEndLine: Int,
+    open val vulnerability: VulnerabilityMetadataDto,
+    open val historyItems: List<HistoryItemDto>,
+    open val codeSnippets: List<CodeSnippetDto>,
+    open val vulnerabilityType: String
+)
+
+// Base unifiée pour les réponses SAST et IAC, comme dans le proto
+// Note: nous allons mapper ceci vers votre `VulnerabilityDtoResponse` existant
+data class VulnerabilitySastIacResponse(
+    val id: String,
+    val projectId: String,
+    val createdAt: String,
+    val updateAt: String,
+    val timeToFix: String?,
+    val currentState: String,
+    val currentSeverity: String,
+    val currentPriority: String,
+    val contextualExplanation: String?,
+    val language: String,
+    val path: String,
+    val vulnerableStartLine: Int,
+    val vulnerableEndLine: Int,
+    val vulnerability: VulnerabilityMetadataDto?, // Peut être nul
+    val historyItems: HistoryItemsWrapper?, // Wrapper
+    val codeSnippets: List<CodeSnippetDto>?, // Peut être nul
+    val vulnerabilityType: String
+)
+
+
+data class HistoryItemsWrapper(val items: List<HistoryItemDto>)
+
+// --- Conteneurs par type ---
+data class VulnerabilitySast(
+    val base: VulnerabilitySastIacResponse?,
+    val dataFlowItems: List<DataFlowItemDto>
+)
+
+data class VulnerabilityIac(
+    val base: VulnerabilitySastIacResponse?
+)
+
+// CETTE CLASSE N'HÉRITE PLUS DE RIEN !
+data class VulnerabilityScaMetadataDto(
+    val cve: String,
+    val internalId: String,
+    val summary: String,
+    val severityGh: String,
+    val schemaVersion: String,
+    val modifiedAt: String? = null,
+    val publishedAt: String? = null,
+    val githubReviewedAt: String? = null,
+    val nvdPublishedAt: String? = null,
+    val aliases: List<VulnerabilityScaAliasDto> = emptyList(),
+    val details: String? = null,
+    val cwes: List<VulnerabilityScaCweDto> = emptyList(),
+    val references: List<VulnerabilityScaReferenceDto> = emptyList(),
+    val severities: List<VulnerabilityScaSeverityDto> = emptyList(),
+    val packages: List<VulnerabilityScaPackageDto> = emptyList()
+)
+
+data class VulnerabilitySca(
+    val base: VulnerabilitySastIacResponse?,
+    val library: ScaDetectedLibraryDto?,
+    val cvssScore: Double?,
+    val metadata: VulnerabilityScaMetadataDto?
+)
+
+// --- DTOs de réponse de liste ---
+data class GetProjectSastVulnerabilitiesResponse(
+    val vulnerabilities: List<VulnerabilitySast>,
+    val total: Int,
+    val scanProjectInfo: ScanProjectInfoDto?
+)
+
+data class GetProjectIacVulnerabilitiesResponse(
+    val vulnerabilities: List<VulnerabilityIac>,
+    val total: Int,
+    val scanProjectInfo: ScanProjectInfoDto?
+)
+
+data class GetProjectScaVulnerabilitiesResponse(
+    val vulnerabilities: List<VulnerabilitySca>,
+    val total: Int,
+    val scanProjectInfo: ScanProjectInfoDto?
+)
+
+// --- DTO de réponse détaillée ---
+data class GetProjectVulnerabilityByIdResponse(
+    val projectId: String,
+    val vulnerabilityId: String,
+    val sast: VulnerabilitySast?,
+    val iac: VulnerabilityIac?,
+    val sca: VulnerabilitySca?
+)
+
+
+// -----------------------------------------------------------------
+// 3. MAPPERS : LE PONT ENTRE LES DTOS D'API ET LE MODÈLE DE VUE
+// -----------------------------------------------------------------
+
+/**
+ * Mapper pour une vulnérabilité SAST.
+ */
+fun VulnerabilitySast.toUnified(): DetailedVulnerability {
+    val base = this.base!!
+    return VulnerabilityDtoResponse(
+        id = base.id,
+        projectId = base.projectId,
+        createdAt = base.createdAt,
+        updateAt = base.updateAt,
+        timeToFix = base.timeToFix,
+        currentState = base.currentState,
+        currentSeverity = base.currentSeverity,
+        currentPriority = base.currentPriority,
+        contextualExplanation = base.contextualExplanation,
+        language = base.language,
+        path = base.path,
+        vulnerableStartLine = base.vulnerableStartLine,
+        vulnerableEndLine = base.vulnerableEndLine,
+        vulnerability = base.vulnerability!!, // Pour SAST/IAC, ce n'est jamais null
+        historyItems = base.historyItems?.items ?: emptyList(),
+        codeSnippets = base.codeSnippets ?: emptyList(),
+        vulnerabilityType = base.vulnerabilityType
+    )
+}
+
+/**
+ * Mapper pour une vulnérabilité IAC.
+ */
+fun VulnerabilityIac.toUnified(): DetailedVulnerability {
+    val base = this.base!!
+    return VulnerabilityDtoResponse(
+        id = base.id,
+        projectId = base.projectId,
+        createdAt = base.createdAt,
+        updateAt = base.updateAt,
+        timeToFix = base.timeToFix,
+        currentState = base.currentState,
+        currentSeverity = base.currentSeverity,
+        currentPriority = base.currentPriority,
+        contextualExplanation = base.contextualExplanation,
+        language = base.language,
+        path = base.path,
+        vulnerableStartLine = base.vulnerableStartLine,
+        vulnerableEndLine = base.vulnerableEndLine,
+        vulnerability = base.vulnerability!!, // Pour SAST/IAC, ce n'est jamais null
+        historyItems = base.historyItems?.items ?: emptyList(),
+        codeSnippets = base.codeSnippets ?: emptyList(),
+        vulnerabilityType = base.vulnerabilityType
+    )
+}
+
+/**
+ * Mapper pour une vulnérabilité SCA. Gère le cas où `base.vulnerability` est null.
+ */
+fun VulnerabilitySca.toUnified(): DetailedVulnerability {
+    val base = this.base!!
+    // Pour SCA, les métadonnées de la vulnérabilité peuvent être nulles dans la base
+    // et doivent être reconstruites à partir de `sca.metadata`.
+    val vulnerabilityMetadata = base.vulnerability ?: VulnerabilityMetadataDto(
+        id = this.metadata?.internalId ?: base.id,
+        name = this.metadata?.summary ?: "N/A",
+        description = this.metadata?.details ?: "",
+        shortDescription = this.metadata?.summary ?: "",
+        howToPrevent = "Update the dependency.",
+        cwe = this.metadata?.cwes?.map { it.cweId } ?: emptyList(),
+        severity = base.currentSeverity,
+        language = this.library?.ecosystem ?: "N/A",
+        vulnerabilityType = "sca"
+    )
+
+    return VulnerabilityDtoResponse(
+        id = base.id,
+        projectId = base.projectId,
+        createdAt = base.createdAt,
+        updateAt = base.updateAt,
+        timeToFix = base.timeToFix,
+        currentState = base.currentState,
+        currentSeverity = base.currentSeverity,
+        currentPriority = base.currentPriority,
+        contextualExplanation = base.contextualExplanation,
+        language = this.library?.ecosystem ?: base.language,
+        path = this.library?.fileName ?: base.path,
+        vulnerableStartLine = base.vulnerableStartLine,
+        vulnerableEndLine = base.vulnerableEndLine,
+        vulnerability = vulnerabilityMetadata,
+        historyItems = base.historyItems?.items ?: emptyList(),
+        codeSnippets = base.codeSnippets ?: emptyList(),
+        vulnerabilityType = base.vulnerabilityType
+    )
+}

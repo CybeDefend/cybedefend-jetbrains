@@ -29,6 +29,7 @@ import com.intellij.util.ui.JBUI
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import toUnified
 import java.awt.BorderLayout
 import java.awt.Font
 import java.awt.event.MouseAdapter
@@ -127,18 +128,26 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
                                 val dto = api.getVulnerabilityDetails(cfg.projectId, vulnId, scanType)
 
                                 // 3) Update UI dans l’EDT
+                                // 3) Update UI dans l’EDT
                                 ApplicationManager.getApplication().invokeLater {
+                                    // Extraire la vulnérabilité unifiée
+                                    val baseVulnerability = when {
+                                        dto.sast != null -> dto.sast.toUnified()
+                                        dto.iac != null -> dto.iac.toUnified()
+                                        dto.sca != null -> dto.sca.toUnified()
+                                        else -> return@invokeLater // ou return pour VulnerabilityDetailsPanel
+                                    }
+
                                     // 0) Populate the details pane
-                                    detailsPanel.showDetails(dto)
+                                    detailsPanel.showDetails(dto) // Passe toujours le DTO complet
 
                                     // 1) Resolve the file path (relative or absolute)
-                                    val relativePath = dto.vulnerability.path
+                                    val relativePath = baseVulnerability.path // <-- Corrigé
                                     val baseDir = project.baseDir
                                     var vf = baseDir.findFileByRelativePath(relativePath)
                                     if (vf == null && project.basePath != null) {
                                         val absPath = "${project.basePath}/$relativePath"
-                                        vf = LocalFileSystem.getInstance()
-                                            .refreshAndFindFileByPath(absPath)
+                                        vf = LocalFileSystem.getInstance().refreshAndFindFileByPath(absPath)
                                     }
 
                                     // 2) If found, open at line & highlight
@@ -146,23 +155,19 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
                                         val descriptor = OpenFileDescriptor(
                                             project,
                                             file,
-                                            dto.vulnerability.vulnerableStartLine - 1,
+                                            baseVulnerability.vulnerableStartLine - 1, // <-- Corrigé
                                             0
                                         )
                                         val editor = FileEditorManager.getInstance(project)
                                             .openTextEditor(descriptor, true)
                                         editor?.markupModel?.addLineHighlighter(
-                                            dto.vulnerability.vulnerableStartLine - 1,
+                                            baseVulnerability.vulnerableStartLine - 1, // <-- Corrigé
                                             HighlighterLayer.ERROR,
-                                            TextAttributes(
-                                                null, null,
-                                                JBColor.RED,
-                                                EffectType.LINE_UNDERSCORE,
-                                                Font.PLAIN
-                                            )
+                                            TextAttributes(null, null, JBColor.RED, EffectType.LINE_UNDERSCORE, Font.PLAIN)
                                         )
                                     }
                                 }
+
                             }
 
                         }
@@ -278,24 +283,20 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
 
         /* ---------- 9. refresh logic ---------- */
         fun refresh() {
-            sastModel.setData(scanState.sastResults?.vulnerabilities)
-            iacModel.setData(scanState.iacResults?.vulnerabilities)
-            scaModel.setData(scanState.scaResults?.vulnerabilities)
+            // Les 'sastResults' sont maintenant directement les listes
+            sastModel.setData(scanState.sastResults)
+            iacModel.setData(scanState.iacResults)
+            scaModel.setData(scanState.scaResults)
 
-            val total = listOf(
-                scanState.sastResults?.total ?: 0,
-                scanState.iacResults?.total ?: 0,
-                scanState.scaResults?.total ?: 0
-            ).sum()
+            // On utilise les nouvelles propriétés de ScanStateService
+            val total = scanState.totalVulnerabilities
 
-            // affiche le loader dans le summary
             summary.icon = if (scanState.isLoading) loader else null
             summary.text = if (scanState.isLoading) {
                 "Scanning…"
             } else {
-                "Total vulnerabilities: $total • Last scan state: ${scanState.error ?: scanState.scaResults?.scanProjectInfo?.state ?: "N/A"}"
+                "Total vulnerabilities: $total • Last scan state: ${scanState.error ?: scanState.lastScanState}"
             }
-
         }
         refresh()
         scanState.addListener { ApplicationManager.getApplication().invokeLater { refresh() } }

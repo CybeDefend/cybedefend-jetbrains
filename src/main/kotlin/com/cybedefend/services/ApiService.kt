@@ -1,8 +1,10 @@
 package com.cybedefend.services
 
 import AddMessageConversationRequestDto
-import GetProjectVulnerabilitiesResponseDto
-import GetProjectVulnerabilityByIdResponseDto
+import GetProjectIacVulnerabilitiesResponse
+import GetProjectSastVulnerabilitiesResponse
+import GetProjectScaVulnerabilitiesResponse
+import GetProjectVulnerabilityByIdResponse
 import GetRepositoriesResponseDto
 import InitiateConversationResponse
 import OrganizationInformationsResponseDto
@@ -46,21 +48,38 @@ private interface ApiServiceApi {
         @HeaderMap headers: Map<String, String>
     ): Response<Void>
 
-    @GET("project/{projectId}/results/{scanType}")
-    suspend fun getScanResults(
+    // AJOUTEZ ces trois fonctions spécifiques
+    @GET("project/{projectId}/results/sast")
+    suspend fun getSastResults(
         @Path("projectId") projectId: String,
-        @Path("scanType") scanType: String,
-        @Query("pageNumber") pageNumber: Int,
-        @Query("pageSizeNumber") pageSizeNumber: Int,
-        @Query("severity") severity: List<String>?
-    ): GetProjectVulnerabilitiesResponseDto
+        @Query("pageNumber") pageNumber: Int = 1,
+        @Query("pageSizeNumber") pageSizeNumber: Int = 50,
+        @Query("severity") severity: List<String>? = null
+    ): GetProjectSastVulnerabilitiesResponse
 
-    @GET("project/{projectId}/results/{scanType}/{vulnerabilityId}")
+    @GET("project/{projectId}/results/iac")
+    suspend fun getIacResults(
+        @Path("projectId") projectId: String,
+        @Query("pageNumber") pageNumber: Int = 1,
+        @Query("pageSizeNumber") pageSizeNumber: Int = 50,
+        @Query("severity") severity: List<String>? = null
+    ): GetProjectIacVulnerabilitiesResponse
+
+    @GET("project/{projectId}/results/sca")
+    suspend fun getScaResults(
+        @Path("projectId") projectId: String,
+        @Query("pageNumber") pageNumber: Int = 1,
+        @Query("pageSizeNumber") pageSizeNumber: Int = 50,
+        @Query("severity") severity: List<String>? = null
+    ): GetProjectScaVulnerabilitiesResponse
+
+    // METTEZ À JOUR la fonction de détails
+    @GET("project/{projectId}/results/vulnerability/{vulnerabilityId}")
     suspend fun getVulnerabilityDetails(
         @Path("projectId") projectId: String,
-        @Path("scanType") scanType: String,
-        @Path("vulnerabilityId") vulnerabilityId: String
-    ): GetProjectVulnerabilityByIdResponseDto
+        @Path("vulnerabilityId") vulnerabilityId: String,
+        @Query("scanType") scanType: String // Le type est maintenant un query param
+    ): GetProjectVulnerabilityByIdResponse
 
     @GET("project/{projectId}/scan/{scanId}")
     suspend fun getScanStatus(
@@ -199,27 +218,53 @@ class ApiService(
         }
     }
 
-    suspend fun getScanResults(
+    suspend fun getSastResults(
         projectId: String,
-        scanType: String,
-        pageNumber: Int? = null,
-        pageSizeNumber: Int? = null,
+        pageNumber: Int = 1,
+        pageSizeNumber: Int = 50,
         severity: List<String>? = null
-    ): GetProjectVulnerabilitiesResponseDto = withContext(Dispatchers.IO) {
+    ): GetProjectSastVulnerabilitiesResponse = withContext(Dispatchers.IO) {
         try {
-            api.getScanResults(projectId, scanType, pageNumber ?: 1, pageSizeNumber ?: 50, severity)
+            api.getSastResults(projectId, pageNumber, pageSizeNumber, severity)
         } catch (e: Throwable) {
-            throw mapToApiError(e, "getScanResults", "ProjectId: $projectId, ScanType: $scanType")
+            throw mapToApiError(e, "getSastResults", "ProjectId: $projectId")
+        }
+    }
+
+    suspend fun getIacResults(
+        projectId: String,
+        pageNumber: Int = 1,
+        pageSizeNumber: Int = 50,
+        severity: List<String>? = null
+    ): GetProjectIacVulnerabilitiesResponse = withContext(Dispatchers.IO) {
+        try {
+            api.getIacResults(projectId, pageNumber, pageSizeNumber, severity)
+        } catch (e: Throwable) {
+            throw mapToApiError(e, "getIacResults", "ProjectId: $projectId")
+        }
+    }
+
+    suspend fun getScaResults(
+        projectId: String,
+        pageNumber: Int = 1,
+        pageSizeNumber: Int = 50,
+        severity: List<String>? = null
+    ): GetProjectScaVulnerabilitiesResponse = withContext(Dispatchers.IO) {
+        try {
+            api.getScaResults(projectId, pageNumber, pageSizeNumber, severity)
+        } catch (e: Throwable) {
+            throw mapToApiError(e, "getScaResults", "ProjectId: $projectId")
         }
     }
 
     suspend fun getVulnerabilityDetails(
         projectId: String,
         vulnerabilityId: String,
-        scanType: String // scanType was missing as a parameter here, but present in the interface call
-    ): GetProjectVulnerabilityByIdResponseDto = withContext(Dispatchers.IO) {
+        scanType: String
+    ): GetProjectVulnerabilityByIdResponse = withContext(Dispatchers.IO) { // <-- Type de retour corrigé
         try {
-            api.getVulnerabilityDetails(projectId, scanType, vulnerabilityId)
+            // L'appel interne est maintenant correct
+            api.getVulnerabilityDetails(projectId, vulnerabilityId, scanType)
         } catch (e: Throwable) {
             throw mapToApiError(e, "getVulnerabilityDetails", "VulnerabilityId: $vulnerabilityId")
         }

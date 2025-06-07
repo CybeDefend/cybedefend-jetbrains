@@ -134,10 +134,9 @@ class ChatBotPanel(
         vulnModel.removeAllElements()
         vulnModel.addElement(VulnerabilityEntry(null, null, "No vuln"))
         val state = ScanStateService.getInstance(project)
-        listOfNotNull(state.sastResults, state.iacResults, state.scaResults)
-            .flatMap { it.vulnerabilities }
+        (state.sastResults.orEmpty() + state.iacResults.orEmpty() + state.scaResults.orEmpty())
             .forEach { v ->
-                val name = v.vulnerability.name.takeIf { !it.isNullOrBlank() } ?: v.id
+                val name = v.vulnerability.name.takeIf { it.isNotBlank() } ?: v.id
                 val short = v.path.substringAfterLast('/')
                 vulnModel.addElement(
                     VulnerabilityEntry(
