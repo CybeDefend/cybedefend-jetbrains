@@ -73,12 +73,22 @@ private interface ApiServiceApi {
         @Query("severity") severity: List<String>? = null
     ): GetProjectScaVulnerabilitiesResponse
 
-    // METTEZ À JOUR la fonction de détails
-    @GET("project/{projectId}/results/vulnerability/{vulnerabilityId}")
-    suspend fun getVulnerabilityDetails(
+    @GET("project/{projectId}/results/sast/{vulnerabilityId}")
+    suspend fun getSastVulnerabilityDetails(
         @Path("projectId") projectId: String,
-        @Path("vulnerabilityId") vulnerabilityId: String,
-        @Query("scanType") scanType: String // Le type est maintenant un query param
+        @Path("vulnerabilityId") vulnerabilityId: String
+    ): GetProjectVulnerabilityByIdResponse
+
+    @GET("project/{projectId}/results/iac/{vulnerabilityId}")
+    suspend fun getIacVulnerabilityDetails(
+        @Path("projectId") projectId: String,
+        @Path("vulnerabilityId") vulnerabilityId: String
+    ): GetProjectVulnerabilityByIdResponse
+
+    @GET("project/{projectId}/results/sca/{vulnerabilityId}")
+    suspend fun getScaVulnerabilityDetails(
+        @Path("projectId") projectId: String,
+        @Path("vulnerabilityId") vulnerabilityId: String
     ): GetProjectVulnerabilityByIdResponse
 
     @GET("project/{projectId}/scan/{scanId}")
@@ -261,10 +271,15 @@ class ApiService(
         projectId: String,
         vulnerabilityId: String,
         scanType: String
-    ): GetProjectVulnerabilityByIdResponse = withContext(Dispatchers.IO) { // <-- Type de retour corrigé
+    ): GetProjectVulnerabilityByIdResponse = withContext(Dispatchers.IO) {
         try {
-            // L'appel interne est maintenant correct
-            api.getVulnerabilityDetails(projectId, vulnerabilityId, scanType)
+            // Ce "when" agit comme un routeur pour appeler le bon endpoint
+            when (scanType.lowercase()) {
+                "sast" -> api.getSastVulnerabilityDetails(projectId, vulnerabilityId)
+                "iac" -> api.getIacVulnerabilityDetails(projectId, vulnerabilityId)
+                "sca" -> api.getScaVulnerabilityDetails(projectId, vulnerabilityId)
+                else -> throw IllegalArgumentException("Unknown scanType for details: $scanType")
+            }
         } catch (e: Throwable) {
             throw mapToApiError(e, "getVulnerabilityDetails", "VulnerabilityId: $vulnerabilityId")
         }

@@ -16,6 +16,7 @@ import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.AnimatedIcon
@@ -34,6 +35,7 @@ import java.awt.BorderLayout
 import java.awt.Font
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.nio.file.Paths
 import javax.swing.*
 import javax.swing.table.TableModel
 import javax.swing.table.TableRowSorter
@@ -98,7 +100,7 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
         }
 
         // panneau où s’afficheront les détails de la vulnérabilité
-        val detailsPanel = VulnerabilityDetailsPanel(project)
+        val detailsPanel = DetailsContainerPanel(project)
 
         // pour chaque onglet, on récupère le JBTable et on ajoute un listener
         for (i in 0 until tabs.tabCount) {
@@ -128,43 +130,43 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
                                 val dto = api.getVulnerabilityDetails(cfg.projectId, vulnId, scanType)
 
                                 // 3) Update UI dans l’EDT
-                                // 3) Update UI dans l’EDT
                                 ApplicationManager.getApplication().invokeLater {
-                                    // Extraire la vulnérabilité unifiée
-                                    val baseVulnerability = when {
-                                        dto.sast != null -> dto.sast.toUnified()
-                                        dto.iac != null -> dto.iac.toUnified()
-                                        dto.sca != null -> dto.sca.toUnified()
-                                        else -> return@invokeLater // ou return pour VulnerabilityDetailsPanel
-                                    }
+                                    // Le 'detailsPanel' est maintenant notre 'DetailsContainerPanel'
+                                    if (dto.sca != null) {
+                                        // Appelle la méthode maintenant existante !
+                                        detailsPanel.showScaDetails(dto.sca)
+                                    } else {
+                                        // Appelle l'autre méthode maintenant existante !
+                                        detailsPanel.showSastIacDetails(dto)
 
-                                    // 0) Populate the details pane
-                                    detailsPanel.showDetails(dto) // Passe toujours le DTO complet
+                                        val baseVulnerability =
+                                            if (dto.sast != null) dto.sast.toUnified() else dto.iac!!.toUnified()
 
-                                    // 1) Resolve the file path (relative or absolute)
-                                    val relativePath = baseVulnerability.path // <-- Corrigé
-                                    val baseDir = project.baseDir
-                                    var vf = baseDir.findFileByRelativePath(relativePath)
-                                    if (vf == null && project.basePath != null) {
-                                        val absPath = "${project.basePath}/$relativePath"
-                                        vf = LocalFileSystem.getInstance().refreshAndFindFileByPath(absPath)
-                                    }
+                                        // Logique pour ouvrir et surligner le fichier (ne s'exécute que pour SAST/IAC)
+                                        val relativePath = baseVulnerability.path
+                                        var vf = VfsUtil.findFile(Paths.get(project.basePath!!, relativePath), true)
 
-                                    // 2) If found, open at line & highlight
-                                    vf?.let { file ->
-                                        val descriptor = OpenFileDescriptor(
-                                            project,
-                                            file,
-                                            baseVulnerability.vulnerableStartLine - 1, // <-- Corrigé
-                                            0
-                                        )
-                                        val editor = FileEditorManager.getInstance(project)
-                                            .openTextEditor(descriptor, true)
-                                        editor?.markupModel?.addLineHighlighter(
-                                            baseVulnerability.vulnerableStartLine - 1, // <-- Corrigé
-                                            HighlighterLayer.ERROR,
-                                            TextAttributes(null, null, JBColor.RED, EffectType.LINE_UNDERSCORE, Font.PLAIN)
-                                        )
+                                        vf?.let { file ->
+                                            val descriptor = OpenFileDescriptor(
+                                                project,
+                                                file,
+                                                baseVulnerability.vulnerableStartLine - 1,
+                                                0
+                                            )
+                                            val editor =
+                                                FileEditorManager.getInstance(project).openTextEditor(descriptor, true)
+                                            editor?.markupModel?.addLineHighlighter(
+                                                baseVulnerability.vulnerableStartLine - 1,
+                                                HighlighterLayer.ERROR,
+                                                TextAttributes(
+                                                    null,
+                                                    null,
+                                                    JBColor.RED,
+                                                    EffectType.LINE_UNDERSCORE,
+                                                    Font.PLAIN
+                                                )
+                                            )
+                                        }
                                     }
                                 }
 
@@ -258,19 +260,24 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
 
 
         /* ---------- 7. root panel ---------- */
+        val rightPanelWrapper = JPanel(BorderLayout()).apply {
+            add(JBScrollPane(detailsPanel), BorderLayout.CENTER)
+        }
+
         val split = JSplitPane(
             JSplitPane.HORIZONTAL_SPLIT,
             JPanel(BorderLayout()).apply {
+                // ... (la partie gauche ne change pas)
                 add(leftToolbar.component, BorderLayout.WEST)
                 add(topBar, BorderLayout.NORTH)
                 add(tabs, BorderLayout.CENTER)
                 add(summary, BorderLayout.SOUTH)
             },
-            JScrollPane(detailsPanel)
+            rightPanelWrapper // <-- On utilise notre nouveau conteneur ici.
         ).apply {
             dividerLocation = 600
-            dividerSize = JBUI.scale(4)                // moins épais
-            border = null                              // pas de bordure blanche
+            dividerSize = JBUI.scale(4)
+            border = null
         }
         val root = JPanel(BorderLayout()).apply {
             add(split, BorderLayout.CENTER)
