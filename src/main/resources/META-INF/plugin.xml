@@ -19,6 +19,16 @@
     </ul>
   ]]></description>
 
+    <change-notes><![CDATA[
+      <b>Version 1.0.0</b>
+      <ul>
+        <li>Publication initiale.</li>
+        <li>Authentification via API Key.</li>
+        <li>Scan SAST, SCA, et IaC.</li>
+        <li>Visualisation des résultats dans une Tool Window.</li>
+      </ul>
+    ]]></change-notes>
+
     <!-- Declare dependency on IntelliJ Platform -->
     <depends>com.intellij.modules.platform</depends>
 
