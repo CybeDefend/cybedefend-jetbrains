@@ -1,0 +1,55 @@
+CybeDefend IntelliJ IDEA Plugin - Proprietary License
+
+Copyright (c) 2024 CybeDefend. All rights reserved.
+
+PROPRIETARY SOFTWARE LICENSE AGREEMENT
+
+This license agreement ("Agreement") governs the use of the CybeDefend IntelliJ IDEA Plugin software ("Software") developed and owned by CybeDefend ("Company"). By installing, copying, or otherwise using the Software, you ("User" or "Licensee") agree to be bound by the terms of this Agreement.
+
+1. GRANT OF LICENSE
+Subject to the terms and conditions of this Agreement and a valid CybeDefend platform subscription, Company grants User a non-exclusive, non-transferable, revocable license to use the Software solely in connection with the CybeDefend security platform and for the User's internal business purposes.
+
+2. RESTRICTIONS
+User shall not:
+a) Copy, modify, adapt, alter, translate, or create derivative works of the Software
+b) Reverse engineer, disassemble, decompile, or otherwise attempt to derive the source code of the Software
+c) Distribute, sublicense, lease, rent, loan, or otherwise transfer the Software to any third party
+d) Remove, alter, or obscure any proprietary notices, labels, or marks on the Software
+e) Use the Software for any unlawful purpose or in violation of any applicable laws or regulations
+
+3. OWNERSHIP
+The Software is licensed, not sold. Company retains all right, title, and interest in and to the Software, including all intellectual property rights therein. User acknowledges that the Software contains proprietary and confidential information of Company.
+
+4. TERM AND TERMINATION
+This license is effective until terminated. Company may terminate this license immediately if User breaches any term of this Agreement. Upon termination, User must cease all use of the Software and destroy all copies in User's possession or control.
+
+5. SUBSCRIPTION REQUIREMENT
+Use of the Software requires a valid and active CybeDefend platform subscription. The Software may cease to function if the associated subscription expires or is terminated.
+
+6. DATA PROCESSING
+User acknowledges that the Software may transmit code metadata to CybeDefend's analysis platform for security scanning purposes. Such data transmission is governed by CybeDefend's Privacy Policy and Data Processing Agreement.
+
+7. DISCLAIMER OF WARRANTIES
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. COMPANY DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+8. LIMITATION OF LIABILITY
+IN NO EVENT SHALL COMPANY BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOSS OF PROFITS, DATA, USE, OR OTHER ECONOMIC ADVANTAGE, EVEN IF COMPANY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+9. SUPPORT
+Technical support for the Software is provided exclusively to valid CybeDefend platform subscribers in accordance with the terms of their subscription agreement.
+
+10. GOVERNING LAW
+This Agreement shall be governed by and construed in accordance with the laws of the jurisdiction where CybeDefend is incorporated, without regard to conflict of law principles.
+
+11. ENTIRE AGREEMENT
+This Agreement constitutes the entire agreement between the parties concerning the Software and supersedes all prior or contemporaneous agreements, whether written or oral, relating to the subject matter hereof.
+
+12. AMENDMENTS
+Company reserves the right to modify this Agreement at any time. Continued use of the Software after such modifications constitutes acceptance of the revised terms.
+
+For questions regarding this license, please contact:
+CybeDefend Legal Department
+Email: legal@cybedefend.com
+Website: https://www.cybedefend.com
+
+Last Updated: December 2024
