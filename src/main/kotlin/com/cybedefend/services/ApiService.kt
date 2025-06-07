@@ -1,11 +1,13 @@
 package com.cybedefend.services
 
 import AddMessageConversationRequestDto
+import GetOrganizationsResponseDto
 import GetProjectIacVulnerabilitiesResponse
 import GetProjectSastVulnerabilitiesResponse
 import GetProjectScaVulnerabilitiesResponse
 import GetProjectVulnerabilityByIdResponse
 import GetRepositoriesResponseDto
+import GetTeamsResponseDto
 import InitiateConversationResponse
 import OrganizationInformationsResponseDto
 import PaginatedProjectsAllInformationsResponseDto
@@ -111,7 +113,7 @@ private interface ApiServiceApi {
     ): InitiateConversationResponse
 
     @GET("organizations")
-    suspend fun getOrganizations(): List<OrganizationInformationsResponseDto>
+    suspend fun getOrganizations(): GetOrganizationsResponseDto
 
     @GET("organization/{organizationId}/github/repositories")
     suspend fun getRepositories(
@@ -121,7 +123,7 @@ private interface ApiServiceApi {
     @GET("organization/{organizationId}/teams")
     suspend fun getTeams(
         @Path("organizationId") organizationId: String
-    ): List<TeamInformationsResponseDto>
+    ): GetTeamsResponseDto
 
     @POST("team/{teamId}/project")
     suspend fun createProject(
@@ -327,7 +329,7 @@ class ApiService(
     suspend fun getOrganizations(): List<OrganizationInformationsResponseDto> =
         withContext(Dispatchers.IO) {
             try {
-                api.getOrganizations()
+                api.getOrganizations().organizations
             } catch (e: Throwable) {
                 throw mapToApiError(e, "getOrganizations")
             }
@@ -345,7 +347,7 @@ class ApiService(
     suspend fun getTeams(organizationId: String): List<TeamInformationsResponseDto> =
         withContext(Dispatchers.IO) {
             try {
-                api.getTeams(organizationId)
+                api.getTeams(organizationId).teams
             } catch (e: Throwable) {
                 throw mapToApiError(e, "getTeams", "OrganizationId: $organizationId")
             }

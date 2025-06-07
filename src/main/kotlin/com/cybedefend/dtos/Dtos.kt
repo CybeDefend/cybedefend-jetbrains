@@ -525,7 +525,14 @@ data class VulnerabilityIac(
     val base: VulnerabilitySastIacResponse?
 )
 
-// CETTE CLASSE N'HÉRITE PLUS DE RIEN !
+data class GetOrganizationsResponseDto(
+    val organizations: List<OrganizationInformationsResponseDto>
+)
+
+data class GetTeamsResponseDto(
+    val teams: List<TeamInformationsResponseDto>
+)
+
 data class VulnerabilityScaMetadataDto(
     val cve: String,
     val internalId: String,

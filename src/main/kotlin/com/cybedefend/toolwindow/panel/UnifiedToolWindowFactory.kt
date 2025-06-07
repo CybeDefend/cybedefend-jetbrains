@@ -313,11 +313,23 @@ class UnifiedToolWindowFactory : ToolWindowFactory, DumbAware {
 
     private fun launchScanAsync(project: Project) {
         CoroutineScope(Dispatchers.Default).launch {
-            val auth = AuthService.getInstance(project)
-            val api = ApiService(auth)
-            auth.ensureProjectConfigurationIsSet(api)?.let { cfg ->
-                ScanStateService.getInstance(project)
-                    .startScan(cfg.projectId, cfg.workspaceRoot)
+            try {
+                val auth = AuthService.getInstance(project)
+                val api = ApiService(auth)
+
+                auth.ensureProjectConfigurationIsSet(api)?.let { cfg ->
+                    ScanStateService.getInstance(project)
+                        .startScan(cfg.projectId, cfg.workspaceRoot)
+                }
+            } catch (e: Exception) {
+                ApplicationManager.getApplication().invokeLater {
+                    com.intellij.openapi.ui.Messages.showErrorDialog(
+                        project,
+                        "Failed to configure project: ${e.message}",
+                        "Configuration Error"
+                    )
+                }
+                com.intellij.openapi.diagnostic.Logger.getInstance(UnifiedToolWindowFactory::class.java).warn("Configuration failed", e)
             }
         }
     }
