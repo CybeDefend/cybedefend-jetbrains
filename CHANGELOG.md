@@ -5,7 +5,41 @@ All notable changes to the CybeDefend IntelliJ IDEA Plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2024-12-19
+## [0.3.1] - 2025-01-22
+
+### 🐛 Fixed
+
+#### Vulnerability Details Display
+- **Fixed markdown rendering issues** that prevented vulnerability details from being displayed correctly
+- **Resolved CSS parsing errors** in markdown-to-HTML conversion that caused blank detail panels
+- **Improved content sizing** for vulnerability descriptions, preventing text from being cut off or invisible
+- **Enhanced dataflow visualization** for SAST vulnerabilities to show complete attack paths across multiple steps
+
+#### SCA Vulnerability Information
+- **Added fix version information** prominently displayed in SCA vulnerability details
+- **Enhanced package information panel** with dedicated "Fix Information" section
+- **Color-coded fix status** (green for available fixes, orange for no fix available)
+- **Added version introduction tracking** showing when vulnerabilities were introduced
+
+#### User Interface Improvements
+- **Fixed horizontal scrolling issues** by implementing fixed-width content containers (580px)
+- **Improved vertical text expansion** allowing content to grow naturally with word wrapping
+- **Enhanced readability** with better text formatting and spacing
+- **Removed debug output** for cleaner console logs and improved performance
+
+#### Technical Enhancements
+- **Robust markdown rendering** using simplified HTML conversion compatible with JBLabel
+- **Improved content sanitization** preventing malformed HTML from breaking the UI
+- **Better error handling** for CSS and styling failures with graceful fallbacks
+- **Optimized component sizing** with proper preferred, minimum, and maximum dimensions
+
+### 🔧 Technical Details
+- **Replaced JEditorPane with JBLabel** for more reliable HTML rendering in vulnerability details
+- **Implemented custom layout containers** with fixed width (580px) and auto-expanding height
+- **Enhanced HTML cleaning pipeline** converting complex markdown to JBLabel-compatible HTML
+- **Added SwingUtilities.invokeLater** for proper UI thread handling during content updates
+
+## [0.3.0] - 2024-12-19
 
 ### 🎉 Initial Release
 

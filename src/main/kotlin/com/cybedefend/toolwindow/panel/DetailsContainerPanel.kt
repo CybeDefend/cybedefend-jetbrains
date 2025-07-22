@@ -12,8 +12,8 @@ import javax.swing.JPanel
 import javax.swing.SwingConstants
 
 /**
- * Conteneur qui gère l'affichage des différents panneaux de détails (SAST/IAC ou SCA)
- * en utilisant un CardLayout pour basculer entre les vues.
+ * Conteneur qui gère l'affichage des différents panneaux de détails (SAST/IAC ou SCA) en utilisant
+ * un CardLayout pour basculer entre les vues.
  */
 class DetailsContainerPanel(project: Project) : JPanel(BorderLayout()) {
     private val cardLayout = CardLayout()
@@ -21,9 +21,10 @@ class DetailsContainerPanel(project: Project) : JPanel(BorderLayout()) {
     // Les deux panneaux spécialisés
     private val sastIacDetailsPanel = VulnerabilitySastIacDetailsPanel(project)
     private val scaDetailsPanel = VulnerabilityScaDetailsPanel()
-    private val emptyPanel = JBLabel("No vulnerability selected", SwingConstants.CENTER).apply {
-        font = font.deriveFont(Font.ITALIC)
-    }
+    private val emptyPanel =
+            JBLabel("No vulnerability selected", SwingConstants.CENTER).apply {
+                font = font.deriveFont(Font.ITALIC)
+            }
 
     init {
         layout = cardLayout
