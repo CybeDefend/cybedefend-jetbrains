@@ -5,6 +5,29 @@ All notable changes to the CybeDefend IntelliJ IDEA Plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-08-18
+
+### ✨ Added
+- **Region Switch (US/EU)**  
+  New selector in *Settings → Tools → CybeDefend* allowing the user to choose between **US** (`https://api-us.cybedefend.com`) and **EU** (`https://api-eu.cybedefend.com`) API endpoints.  
+  Applied **on the fly** without IDE restart; persisted **per workspace**.
+
+- **Reset & Reconfigure**  
+  New **Maintenance** group in Settings:
+  - *Reset credentials*: clears API key + project/org IDs for the current workspace.
+  - *Reset & Reconfigure…*: performs a reset and then triggers the **full configuration workflow** (`ensureProjectConfigurationIsSet`) in a background task.
+
+### 🔧 Technical
+- **Dynamic Retrofit base URL** via `ApiRegion` + `AuthService.getBaseApiUrl()`.  
+  `ApiService` rebuilds Retrofit automatically on region change (thread-safe).
+- **ChatBot SSE aligned** with the active region (`getCurrentBaseUrl()`).
+- **Preflight checks**: validates API key and `projectId` before calls, with clear user-facing error messages (avoids silent 401s).
+- **Settings UI stability**: API Region combo properly wired (reset/apply), values persisted per workspace.
+
+### ✅ Quality
+- Improved network resilience with contextualized error messages (including active base URL).
+- Multi-project experience improved: each IDE window can use its **own region** independently.
+
 ## [0.3.1] - 2025-01-22
 
 ### 🐛 Fixed

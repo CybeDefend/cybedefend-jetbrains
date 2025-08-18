@@ -7,7 +7,7 @@ plugins {
 
 group = "com.cybedefend"
 
-version = "0.2.0"
+version = "0.4.0"
 
 repositories {
     mavenCentral()
@@ -41,11 +41,19 @@ configurations.all {
 intellijPlatform {
     pluginConfiguration {
         ideaVersion {
-            sinceBuild = "242" // build 242 = 2024.2
+            sinceBuild = "242" // 2024.2
         }
+        // ⬇️ update change notes (HTML supported)
         changeNotes = """
-      Initial version – appel API MonScope
-    """.trimIndent()
+          <h3>0.4.0</h3>
+          <ul>
+            <li><b>Region Switch (US/EU)</b>: selectable in Settings, applied live per workspace.</li>
+            <li><b>Reset & Reconfigure</b>: reset credentials and trigger the full configuration workflow.</li>
+            <li>Dynamic Retrofit base URL + ChatBot SSE aligned with selected region.</li>
+            <li>API key / projectId preflight checks for clearer errors.</li>
+          </ul>
+          <p>See <code>CHANGELOG.md</code> for full details.</p>
+        """.trimIndent()
     }
 }
 

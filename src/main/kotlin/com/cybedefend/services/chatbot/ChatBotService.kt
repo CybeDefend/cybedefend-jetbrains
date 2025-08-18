@@ -36,15 +36,22 @@ class ChatBotService(private val apiService: ApiService) {
      * stream ends, onError on failure.
      */
     suspend fun streamConversation(
-            projectId: String,
-            conversationId: String,
-            initialMessage: String? = null,
-            onDelta: (String) -> Unit,
-            onComplete: () -> Unit,
-            onError: (Throwable) -> Unit
-    ) =
-            withContext(Dispatchers.IO) {
-                val baseUrl = apiService.baseUrl.trimEnd('/')
+        projectId: String,
+        conversationId: String,
+        initialMessage: String? = null,
+        onDelta: (String) -> Unit,
+        onComplete: () -> Unit,
+        onError: (Throwable) -> Unit
+    ) = withContext(Dispatchers.IO) {
+                val apiKey = apiService.authService.getApiKey().orEmpty()
+                require(apiKey.isNotBlank()) {
+                    "Missing API Key. Open Settings → CybeDefend and set your API Key."
+                }
+                require(projectId.isNotBlank()) {
+                    "Missing projectId for chat streaming. Ensure your workspace is linked to a project."
+                }
+
+                val baseUrl = apiService.getCurrentBaseUrl().trimEnd('/')
                 val url = buildString {
                     append("$baseUrl/project/$projectId/ai/conversation/$conversationId/stream")
                     if (!initialMessage.isNullOrBlank()) {
@@ -52,14 +59,10 @@ class ChatBotService(private val apiService: ApiService) {
                     }
                 }
 
-                val request =
-                        Request.Builder()
-                                .url(url)
-                                .addHeader(
-                                        "X-API-Key",
-                                        apiService.authService.getApiKey().orEmpty()
-                                )
-                                .build()
+                val request = Request.Builder()
+                    .url(url)
+                    .addHeader("X-API-Key", apiKey)
+                    .build()
 
                 var response: Response? = null
                 try {

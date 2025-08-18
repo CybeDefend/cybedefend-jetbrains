@@ -26,6 +26,7 @@ class AuthService(private val project: Project) {
         private const val PROJECT_ID_KEY_PREFIX = "cybedefendProjectId_"
         private const val ORG_ID_KEY_PREFIX = "cybedefendOrgId_"
         private const val SERVICE_NAME = "CybeDefend"
+        private const val REGION_KEY_PREFIX = "cybedefendApiRegion_"
         private const val KEY_NAME = "APIKey"
         fun getInstance(project: Project): AuthService = project.service<AuthService>()
     }
@@ -105,6 +106,35 @@ class AuthService(private val project: Project) {
         LOG.debug("Falling back to list projects for manual selection/creation.")
         return fallbackToListProjects(apiKey, selectedOrgId, currentProjectRoot, api)
     }
+
+    /**
+     * Returns the selected API region for the current workspace.
+     * Defaults to US when not set or path is missing.
+     */
+    fun getWorkspaceApiRegion(): ApiRegion { // NEW
+        val root = project.basePath ?: return ApiRegion.US
+        val persisted = properties.getValue(REGION_KEY_PREFIX + root)
+        val region = ApiRegion.fromPersisted(persisted)
+        LOG.debug("getWorkspaceApiRegion for '$root' -> $region")
+        return region
+    }
+
+    /**
+     * Persists the selected API region for the current workspace.
+     */
+    fun storeWorkspaceApiRegion(region: ApiRegion) { // NEW
+        val root = project.basePath ?: run {
+            LOG.warn("Cannot store API region, project base path is null.")
+            return
+        }
+        LOG.debug("storeWorkspaceApiRegion for '$root' -> $region")
+        properties.setValue(REGION_KEY_PREFIX + root, region.name)
+    }
+
+    /**
+     * One-liner used by ApiService to fetch the effective base URL on demand.
+     */
+    fun getBaseApiUrl(): String = getWorkspaceApiRegion().baseUrl // NEW
 
     fun getApiKey(): String? {
         LOG.debug("Attempting to get API key.")

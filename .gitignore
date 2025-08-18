@@ -11,6 +11,8 @@
 .run
 build
 
+gradlew.bat
+
 # BlueJ files
 *.ctxt
 
