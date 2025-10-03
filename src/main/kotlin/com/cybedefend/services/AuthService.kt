@@ -37,7 +37,7 @@ class AuthService(private val project: Project) {
     @Volatile private var memoryCachedApiKey: String? = null
 
     private val credentialAttributes =
-            CredentialAttributes(generateServiceName(SERVICE_NAME, KEY_NAME))
+        CredentialAttributes(generateServiceName(SERVICE_NAME, KEY_NAME))
 
     suspend fun ensureProjectConfigurationIsSet(api: ApiService): ProjectConfig? {
         LOG.debug("Ensuring project configuration is set")

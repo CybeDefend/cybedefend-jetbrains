@@ -4,6 +4,7 @@ package com.cybedefend.services
 import AddMessageConversationRequestDto
 import StartConversationRequestDto
 import com.google.gson.JsonParser
+import com.google.gson.Strictness
 import com.google.gson.stream.JsonReader
 import java.io.IOException
 import java.io.StringReader
@@ -75,11 +76,10 @@ class ChatBotService(private val apiService: ApiService) {
                     while (!source.exhausted()) {
                         val line = source.readUtf8Line() ?: break
                         if (line.isBlank()) {
-                            // On n’essaie de parser que ce qu’on a accumulé
                             val raw = buffer.toString().trim()
                             buffer.clear()
                             if (raw == "null" || raw.isBlank()) continue
-                            val reader = JsonReader(StringReader(raw)).apply { isLenient = true }
+                            val reader = JsonReader(StringReader(raw)).apply { strictness = Strictness.LENIENT }
                             val obj = JsonParser.parseReader(reader).asJsonObject
                             when (obj.get("type").asString) {
                                 "delta" -> onDelta(obj.get("payload").asString)

@@ -1,7 +1,7 @@
 plugins {
     java
     kotlin("jvm") version "1.9.25"
-    id("org.jetbrains.intellij.platform") version "2.6.0"
+    id("org.jetbrains.intellij.platform") version "2.9.0"
     kotlin("plugin.serialization") version "1.9.25"
 }
 
@@ -43,7 +43,7 @@ intellijPlatform {
         ideaVersion {
             sinceBuild = "242" // 2024.2
         }
-        // ⬇️ update change notes (HTML supported)
+
         changeNotes = """
           <h3>0.4.0</h3>
           <ul>
@@ -54,6 +54,49 @@ intellijPlatform {
           </ul>
           <p>See <code>CHANGELOG.md</code> for full details.</p>
         """.trimIndent()
+    }
+    pluginVerification {
+        ides {
+            // ======================================================================
+            // --- Groupe 1 : Famille 2025.2 (résolution automatique du patch) ---
+            // ======================================================================
+
+            // --- Core IDEs ---
+            create("IC", "2025.2")  // IntelliJ IDEA Community
+            create("PS", "2025.2")  // PhpStorm
+            create("WS", "2025.2")  // WebStorm
+            create("PC", "2025.2")  // PyCharm Professional
+            create("RM", "2025.2")  // RubyMine
+            create("GO", "2025.2")  // GoLand
+
+            // --- IDEs .NET & C/C++/Rust ---
+            create("RD", "2025.2")
+            create("CL", "2025.2")  // CLion
+            create("RR", "2025.2")  // RustRover
+
+            // --- Data & QA ---
+            create("DB", "2025.2")  // DataGrip
+
+            // ======================================================================
+            // --- Groupe 2 : Famille 2024.3 (résolution automatique du patch) ---
+            // ======================================================================
+
+            // --- Core IDEs ---
+            create("IC", "2024.3")  // IntelliJ IDEA Community
+            create("PS", "2024.3")  // PhpStorm
+            create("WS", "2024.3")  // WebStorm
+            create("PC", "2024.3")  // PyCharm Professional
+            create("RM", "2024.3")  // RubyMine
+            create("GO", "2024.3")  // GoLand
+
+            // --- IDEs .NET & C/C++/Rust ---
+            create("RD", "2024.3")
+            create("CL", "2024.3")  // CLion
+            create("RR", "2024.3")  // RustRover
+
+            // --- Data & QA ---
+            create("DB", "2024.3")  // DataGrip
+        }
     }
 }
 
