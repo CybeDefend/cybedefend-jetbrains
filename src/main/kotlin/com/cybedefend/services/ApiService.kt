@@ -8,13 +8,11 @@ import GetProjectScaVulnerabilitiesResponse
 import GetProjectVulnerabilityByIdResponse
 import GetRepositoriesResponseDto
 import GetTeamsResponseDto
-import InitiateConversationResponse
 import OrganizationInformationsResponseDto
 import PaginatedProjectsAllInformationsResponseDto
 import ProjectInformationsResponseDto
 import RepositoryDto
 import ScanResponseDto
-import StartConversationRequestDto
 import StartScanResponseDto
 import TeamInformationsResponseDto
 import java.io.File
@@ -94,19 +92,6 @@ private interface ApiServiceApi {
                 @Path("projectId") projectId: String,
                 @Path("scanId") scanId: String
         ): ScanResponseDto
-
-        @POST("project/{projectId}/ai/conversation/start")
-        suspend fun startConversation(
-                @Path("projectId") projectId: String,
-                @Body body: StartConversationRequestDto
-        ): InitiateConversationResponse
-
-        @POST("project/{projectId}/ai/conversation/{conversationId}/message")
-        suspend fun continueConversation(
-                @Path("projectId") projectId: String,
-                @Path("conversationId") conversationId: String,
-                @Body body: AddMessageConversationRequestDto
-        ): InitiateConversationResponse
 
         @GET("organizations") suspend fun getOrganizations(): GetOrganizationsResponseDto
 
@@ -361,44 +346,6 @@ class ApiService(val authService: AuthService) {
                                 api.getScanStatus(projectId, scanId)
                         } catch (e: Throwable) {
                                 throw mapToApiError(e, "getScanStatus", "ScanId: $scanId")
-                        }
-                }
-
-        suspend fun startConversation(
-                projectId: String,
-                request: StartConversationRequestDto
-        ): InitiateConversationResponse =
-                withContext(Dispatchers.IO) {
-                        requireApiKey()
-                        logBaseUrlIfChanged()
-                        try {
-                                api.startConversation(projectId, request)
-                        } catch (e: Throwable) {
-                                throw mapToApiError(e, "startConversation", "ProjectId: $projectId")
-                        }
-                }
-
-        suspend fun continueConversation(
-                projectId: String,
-                conversationId: String,
-                request: AddMessageConversationRequestDto
-        ): InitiateConversationResponse =
-                withContext(Dispatchers.IO) {
-                        requireApiKey()
-                        logBaseUrlIfChanged()
-                        if (request.idConversation.isBlank() || request.projectId.isBlank()) {
-                                throw IllegalArgumentException(
-                                        "Project ID and Conversation ID must be set in the request for continueConversation."
-                                )
-                        }
-                        try {
-                                api.continueConversation(projectId, conversationId, request)
-                        } catch (e: Throwable) {
-                                throw mapToApiError(
-                                        e,
-                                        "continueConversation",
-                                        "ConversationId: $conversationId"
-                                )
                         }
                 }
 

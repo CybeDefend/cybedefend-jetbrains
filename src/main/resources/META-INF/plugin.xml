@@ -14,7 +14,6 @@
     <ul>
       <li>Start scans directly from the IDE</li>
       <li>View Summary, SAST, IaC and SCA results in a single unified tool window</li>
-      <li>Interact with the CybeDefend chatbot</li>
       <li>Configure API key and project settings</li>
     </ul>
   ]]></description>
@@ -50,13 +49,5 @@
                 secondary="false"
                 canCloseContents="false"
         />
-
-        <toolWindow
-                id="CybeDefend Security Champion"
-                anchor="left"
-                factoryClass="com.cybedefend.toolwindow.chatbot.ChatBotToolWindowFactory"
-                icon="/icons/cybedefend_inverted.png"
-                secondary="true"
-                canCloseContents="false"/>
     </extensions>
 </idea-plugin>
