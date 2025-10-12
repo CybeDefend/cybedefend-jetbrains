@@ -7,7 +7,7 @@ plugins {
 
 group = "com.cybedefend"
 
-version = "0.4.1"
+version = "0.4.2"
 
 repositories {
     mavenCentral()
@@ -44,16 +44,17 @@ intellijPlatform {
             sinceBuild = "242" // 2024.2
         }
 
-        changeNotes = """
-          <h3>0.4.0</h3>
-          <ul>
-            <li><b>Region Switch (US/EU)</b>: selectable in Settings, applied live per workspace.</li>
-            <li><b>Reset & Reconfigure</b>: reset credentials and trigger the full configuration workflow.</li>
-            <li>Dynamic Retrofit base URL + ChatBot SSE aligned with selected region.</li>
-            <li>API key / projectId preflight checks for clearer errors.</li>
-          </ul>
-          <p>See <code>CHANGELOG.md</code> for full details.</p>
-        """.trimIndent()
+                changeNotes = """
+                    <h3>0.4.2</h3>
+                    <ul>
+                        <li><b>Region Switch (US/EU)</b>: selectable in Settings, applied live per workspace.</li>
+                        <li><b>Reset & Reconfigure</b>: reset credentials and trigger the full configuration workflow.</li>
+                        <li>Dynamic Retrofit base URL aligned with the selected region.</li>
+                        <li>Removed ChatBot feature; infra and UI cleaned for this release.</li>
+                        <li>API key / projectId preflight checks for clearer errors.</li>
+                    </ul>
+                    <p>See <code>CHANGELOG.md</code> for full details.</p>
+                """.trimIndent()
     }
 //    pluginVerification {
 //        ides {
