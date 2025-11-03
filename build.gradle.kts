@@ -32,9 +32,9 @@ dependencies {
 
 configurations.all {
     resolutionStrategy.force(
-            "org.jetbrains.kotlin:kotlin-stdlib:1.9.25",
-            "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.25",
-            "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.25"
+            "org.jetbrains.kotlin:kotlin-stdlib:2.2.0",
+            "org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.2.0",
+            "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.2.0"
     )
 }
 
