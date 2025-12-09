@@ -6,10 +6,12 @@ import VulnerabilityDtoResponse
 import VulnerabilitySastIacResponse
 import com.cybedefend.services.ApiService
 import com.cybedefend.services.AuthService
+import com.cybedefend.utils.GitUtils
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.Service.Level
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
@@ -26,6 +28,8 @@ import java.util.zip.ZipOutputStream
 @Service(Level.PROJECT)
 class ScanStateService(private val project: Project) {
     companion object {
+        private val LOG = Logger.getInstance(ScanStateService::class.java)
+        
         fun getInstance(project: Project): ScanStateService =
             project.getService(ScanStateService::class.java)
     }
@@ -45,6 +49,10 @@ class ScanStateService(private val project: Project) {
     var totalVulnerabilities: Int = 0
         private set
     var lastScanState: String? = "N/A"
+        private set
+    
+    /** The branch name used for the last scan, if available */
+    var currentBranch: String? = null
         private set
 
     private val listeners = mutableSetOf<() -> Unit>()
@@ -96,8 +104,9 @@ class ScanStateService(private val project: Project) {
     fun reset() {
         isLoading = false
         error = null
-        totalVulnerabilities = 0 // <-- AJOUTER
-        lastScanState = "N/A"    // <-- AJOUTER
+        totalVulnerabilities = 0
+        lastScanState = "N/A"
+        currentBranch = null
         clearResults()
         notifyListeners()
     }
@@ -109,16 +118,30 @@ class ScanStateService(private val project: Project) {
     }
 
     /**
-     * Lance tout le workflow de scan (archive, API, polling, fetch, notify).
-     * @param projectId ID CybeDefend du projet
-     * @param workspaceRoot chemin local du workspace à zipper
+     * Launches the complete scan workflow (archive, API, polling, fetch, notify).
+     * Automatically detects the current Git branch and associates it with the scan.
+     * 
+     * @param projectId CybeDefend project ID
+     * @param workspaceRoot Local workspace path to zip and scan
      */
     fun startScan(projectId: String, workspaceRoot: String) {
         object : Task.Backgroundable(project, "CybeDefend: Scanning…", true) {
             override fun run(ind: ProgressIndicator) {
                 runBlocking {
                     try {
-                        // A) Archive (inchangé)
+                        // Detect current Git branch for branch-aware scanning
+                        ind.text = "Detecting Git branch…"
+                        val detectedBranch = detectGitBranch(workspaceRoot)
+                        currentBranch = detectedBranch
+                        
+                        if (detectedBranch != null) {
+                            LOG.info("Starting scan on branch: $detectedBranch")
+                            ind.text2 = "Branch: $detectedBranch"
+                        } else {
+                            LOG.info("No Git branch detected, starting scan without branch association")
+                        }
+                        
+                        // A) Archive project files
                         ind.text = "Archiving project…"
                         val zipFile = createWorkspaceZip(workspaceRoot, ind)
 
@@ -126,33 +149,45 @@ class ScanStateService(private val project: Project) {
                         ind.text = "Initiating scan..."
                         val api = ApiService(authService = AuthService.getInstance(project))
 
-                        val startScanResponse = api.startScan(projectId)
+                        // Start scan with branch information
+                        val startScanResponse = api.startScan(projectId, detectedBranch)
                         val signedUrl = startScanResponse.url
                         val scanId = startScanResponse.scanId
 
                         ind.text = "Uploading project files..."
                         api.uploadFileToSignedUrl(signedUrl, zipFile)
 
-                        // C) Poll du statut (inchangé, mais utilise le scanId de l'étape 1)
+                        // B) Poll scan status until completion
                         ind.text = "Waiting for scan to complete…"
                         val final = pollScanStatus(projectId, scanId, api, ind)
                         if (!final.contains("COMPLETED")) throw Exception("Final status: $final")
 
-                        // D) Fetch
+                        // C) Fetch results with branch filter
                         ind.text = "Fetching SAST results…"
-                        val sastResponse = api.getSastResults(projectId)
+                        val sastResponse = api.getSastResults(projectId, branch = detectedBranch)
                         val sastVulns = sastResponse.vulnerabilities.mapNotNull { it.base?.toUnified() }
 
                         ind.text = "Fetching IaC results…"
-                        val iacResponse = api.getIacResults(projectId)
+                        val iacResponse = api.getIacResults(projectId, branch = detectedBranch)
                         val iacVulns = iacResponse.vulnerabilities.mapNotNull { it.base?.toUnified() }
 
                         ind.text = "Fetching SCA results…"
-                        val scaResponse = api.getScaResults(projectId)
+                        val scaResponse = api.getScaResults(projectId, branch = detectedBranch)
                         val scaVulns = scaResponse.vulnerabilities.map { it.toUnified() }
 
-                        // E) Update UI
+                        // D) Update UI with results
                         updateResults(sastVulns, iacVulns, scaVulns, sastResponse)
+                        
+                        // Notify success with branch info
+                        val branchInfo = if (detectedBranch != null) " on branch '$detectedBranch'" else ""
+                        NotificationGroupManager.getInstance()
+                            .getNotificationGroup("CybeDefend")
+                            .createNotification(
+                                "Scan completed",
+                                "Found ${sastVulns.size + iacVulns.size + scaVulns.size} vulnerabilities$branchInfo",
+                                NotificationType.INFORMATION
+                            ).notify(project)
+                            
                     } catch (e: Exception) {
                         setError(e.message ?: "Unknown error")
                         NotificationGroupManager.getInstance()
@@ -166,6 +201,30 @@ class ScanStateService(private val project: Project) {
                 }
             }
         }.queue()
+    }
+    
+    /**
+     * Detects the current Git branch for the workspace.
+     * Returns a sanitized branch name suitable for API calls.
+     * 
+     * @param workspaceRoot The workspace root directory
+     * @return The branch name, or null if not in a Git repository or detection fails
+     */
+    private fun detectGitBranch(workspaceRoot: String): String? {
+        return try {
+            val branch = GitUtils.getCurrentBranch(workspaceRoot)
+            
+            // Skip detached HEAD states for API calls (they contain special characters)
+            if (branch != null && branch.startsWith("HEAD (")) {
+                LOG.debug("Skipping detached HEAD state for branch association")
+                null
+            } else {
+                branch
+            }
+        } catch (e: Exception) {
+            LOG.warn("Error detecting Git branch: ${e.message}", e)
+            null
+        }
     }
 
     /**

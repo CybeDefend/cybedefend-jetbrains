@@ -1,7 +1,7 @@
 plugins {
     java
     kotlin("jvm") version "1.9.25"
-    id("org.jetbrains.intellij.platform") version "2.9.0"
+    id("org.jetbrains.intellij.platform") version "2.10.5"
     kotlin("plugin.serialization") version "1.9.25"
 }
 
@@ -30,11 +30,12 @@ dependencies {
     compileOnly("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.7.1")
 }
 
+// Force Kotlin stdlib to match compiler version to avoid metadata incompatibility
 configurations.all {
     resolutionStrategy.force(
-            "org.jetbrains.kotlin:kotlin-stdlib:2.2.0",
-            "org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.2.0",
-            "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.2.0"
+            "org.jetbrains.kotlin:kotlin-stdlib:1.9.25",
+            "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.25",
+            "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.25"
     )
 }
 
@@ -101,10 +102,34 @@ intellijPlatform {
 //    }
 }
 
+// Load .env file if it exists (for local development)
+val dotEnvFile = file(".env")
+val dotEnvVars = mutableMapOf<String, String>()
+if (dotEnvFile.exists()) {
+    dotEnvFile.readLines().forEach { line ->
+        val trimmed = line.trim()
+        if (trimmed.isNotEmpty() && !trimmed.startsWith("#") && trimmed.contains("=")) {
+            val (key, value) = trimmed.split("=", limit = 2)
+            dotEnvVars[key.trim()] = value.trim()
+        }
+    }
+    println("[CybeDefend] Loaded ${dotEnvVars.size} variables from .env file")
+}
+
 tasks {
     withType<JavaCompile> {
         sourceCompatibility = "21"
         targetCompatibility = "21"
     }
     withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> { kotlinOptions.jvmTarget = "21" }
+    
+    // Pass environment variables to the sandboxed IDE for debug mode
+    // Priority: Shell env > .env file > default false
+    runIde {
+        val debugValue = System.getenv("CYBEDEFEND_DEBUG") 
+            ?: dotEnvVars["CYBEDEFEND_DEBUG"] 
+            ?: "false"
+        environment("CYBEDEFEND_DEBUG", debugValue)
+        println("[CybeDefend] runIde CYBEDEFEND_DEBUG=$debugValue")
+    }
 }

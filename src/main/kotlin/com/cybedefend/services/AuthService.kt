@@ -132,9 +132,13 @@ class AuthService(private val project: Project) {
     }
 
     /**
-     * One-liner used by ApiService to fetch the effective base URL on demand.
+     * Returns the effective base URL for API calls.
+     * Considers debug mode (CYBEDEFEND_DEBUG=true) which overrides to localhost.
      */
-    fun getBaseApiUrl(): String = getWorkspaceApiRegion().baseUrl // NEW
+    fun getBaseApiUrl(): String {
+        val region = getWorkspaceApiRegion()
+        return ApiRegion.getEffectiveBaseUrl(region)
+    }
 
     fun getApiKey(): String? {
         LOG.debug("Attempting to get API key.")
@@ -307,7 +311,7 @@ class AuthService(private val project: Project) {
         LOG.debug("Attempting to auto-link repo '$repoName' in org '$orgId' at root '$root'.")
         try {
             val projectsDto =
-                    api.getProjectsOrganization(orgId, pageSize = 100, page = 1) // Suspend call
+                    api.getProjectsOrganization(orgId, pageSize = 20, page = 1) // Suspend call (API max is 20)
             val matchingProject =
                     projectsDto.projects.firstOrNull { it.name.equals(repoName, ignoreCase = true) }
 
@@ -427,13 +431,13 @@ class AuthService(private val project: Project) {
                 val projectsDto: PaginatedProjectsAllInformationsResponseDto =
                         try {
                             LOG.debug(
-                                    "Fetching projects for org $orgId (team filter might be implicit or applied if API supports it, page 1, size 100)."
+                                    "Fetching projects for org $orgId (team filter might be implicit or applied if API supports it, page 1, size 20)."
                             )
                             api.getProjectsOrganization(
                                     orgId,
-                                    pageSize = 100,
+                                    pageSize = 20,
                                     page = 1
-                            ) // Suspend call
+                            ) // Suspend call (API max is 20)
                         } catch (e: Exception) {
                             LOG.error("Failed to get projects for org $orgId: ${e.message}", e)
                             quickError("Failed to get projects: ${e.message}")

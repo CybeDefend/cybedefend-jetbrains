@@ -13,6 +13,7 @@ import PaginatedProjectsAllInformationsResponseDto
 import ProjectInformationsResponseDto
 import RepositoryDto
 import ScanResponseDto
+import StartScanBodyDto
 import StartScanResponseDto
 import TeamInformationsResponseDto
 import java.io.File
@@ -35,7 +36,10 @@ import retrofit2.http.Path
 /** Retrofit API definitions matching the backend endpoints. */
 private interface ApiServiceApi {
         @POST("project/{projectId}/scan/start")
-        suspend fun startScan(@Path("projectId") projectId: String): StartScanResponseDto
+        suspend fun startScan(
+                @Path("projectId") projectId: String,
+                @Body body: StartScanBodyDto?
+        ): StartScanResponseDto
 
         @PUT
         suspend fun uploadFile(
@@ -50,7 +54,8 @@ private interface ApiServiceApi {
                 @Path("projectId") projectId: String,
                 @Query("pageNumber") pageNumber: Int = 1,
                 @Query("pageSizeNumber") pageSizeNumber: Int = 50,
-                @Query("severity") severity: List<String>? = null
+                @Query("severity") severity: List<String>? = null,
+                @Query("branch") branch: String? = null
         ): GetProjectSastVulnerabilitiesResponse
 
         @GET("project/{projectId}/results/iac")
@@ -58,7 +63,8 @@ private interface ApiServiceApi {
                 @Path("projectId") projectId: String,
                 @Query("pageNumber") pageNumber: Int = 1,
                 @Query("pageSizeNumber") pageSizeNumber: Int = 50,
-                @Query("severity") severity: List<String>? = null
+                @Query("severity") severity: List<String>? = null,
+                @Query("branch") branch: String? = null
         ): GetProjectIacVulnerabilitiesResponse
 
         @GET("project/{projectId}/results/sca")
@@ -66,7 +72,8 @@ private interface ApiServiceApi {
                 @Path("projectId") projectId: String,
                 @Query("pageNumber") pageNumber: Int = 1,
                 @Query("pageSizeNumber") pageSizeNumber: Int = 50,
-                @Query("severity") severity: List<String>? = null
+                @Query("severity") severity: List<String>? = null,
+                @Query("branch") branch: String? = null
         ): GetProjectScaVulnerabilitiesResponse
 
         @GET("project/{projectId}/results/sast/{vulnerabilityId}")
@@ -204,14 +211,22 @@ class ApiService(val authService: AuthService) {
 
         // ---- public API calls ------------------------------------------------
 
-        suspend fun startScan(projectId: String): StartScanResponseDto =
+        /**
+         * Starts a security scan for the specified project.
+         * 
+         * @param projectId The project ID to scan
+         * @param branch Optional branch name to associate with the scan
+         * @return StartScanResponseDto containing the signed URL and scan ID
+         */
+        suspend fun startScan(projectId: String, branch: String? = null): StartScanResponseDto =
                 withContext(Dispatchers.IO) {
                         requireApiKey()
                         logBaseUrlIfChanged()
                         try {
-                                api.startScan(projectId)
+                                val body = if (branch != null) StartScanBodyDto(branch) else null
+                                api.startScan(projectId, body)
                         } catch (e: Throwable) {
-                                throw mapToApiError(e, "startScan", "ProjectId: $projectId")
+                                throw mapToApiError(e, "startScan", "ProjectId: $projectId, Branch: $branch")
                         }
                 }
 
@@ -248,51 +263,84 @@ class ApiService(val authService: AuthService) {
                         }
                 }
 
+        /**
+         * Fetches SAST (Static Application Security Testing) results for a project.
+         * 
+         * @param projectId The project ID to fetch results for
+         * @param pageNumber Page number for pagination (default: 1)
+         * @param pageSizeNumber Number of results per page (default: 50)
+         * @param severity Optional list of severities to filter by
+         * @param branch Optional branch name to filter results by
+         * @return GetProjectSastVulnerabilitiesResponse containing SAST vulnerabilities
+         */
         suspend fun getSastResults(
                 projectId: String,
                 pageNumber: Int = 1,
                 pageSizeNumber: Int = 50,
-                severity: List<String>? = null
+                severity: List<String>? = null,
+                branch: String? = null
         ): GetProjectSastVulnerabilitiesResponse =
                 withContext(Dispatchers.IO) {
                         requireApiKey()
                         logBaseUrlIfChanged()
                         try {
-                                api.getSastResults(projectId, pageNumber, pageSizeNumber, severity)
+                                api.getSastResults(projectId, pageNumber, pageSizeNumber, severity, branch)
                         } catch (e: Throwable) {
-                                throw mapToApiError(e, "getSastResults", "ProjectId: $projectId")
+                                throw mapToApiError(e, "getSastResults", "ProjectId: $projectId, Branch: $branch")
                         }
                 }
 
+        /**
+         * Fetches IaC (Infrastructure as Code) security results for a project.
+         * 
+         * @param projectId The project ID to fetch results for
+         * @param pageNumber Page number for pagination (default: 1)
+         * @param pageSizeNumber Number of results per page (default: 50)
+         * @param severity Optional list of severities to filter by
+         * @param branch Optional branch name to filter results by
+         * @return GetProjectIacVulnerabilitiesResponse containing IaC vulnerabilities
+         */
         suspend fun getIacResults(
                 projectId: String,
                 pageNumber: Int = 1,
                 pageSizeNumber: Int = 50,
-                severity: List<String>? = null
+                severity: List<String>? = null,
+                branch: String? = null
         ): GetProjectIacVulnerabilitiesResponse =
                 withContext(Dispatchers.IO) {
                         requireApiKey()
                         logBaseUrlIfChanged()
                         try {
-                                api.getIacResults(projectId, pageNumber, pageSizeNumber, severity)
+                                api.getIacResults(projectId, pageNumber, pageSizeNumber, severity, branch)
                         } catch (e: Throwable) {
-                                throw mapToApiError(e, "getIacResults", "ProjectId: $projectId")
+                                throw mapToApiError(e, "getIacResults", "ProjectId: $projectId, Branch: $branch")
                         }
                 }
 
+        /**
+         * Fetches SCA (Software Composition Analysis) results for a project.
+         * 
+         * @param projectId The project ID to fetch results for
+         * @param pageNumber Page number for pagination (default: 1)
+         * @param pageSizeNumber Number of results per page (default: 50)
+         * @param severity Optional list of severities to filter by
+         * @param branch Optional branch name to filter results by
+         * @return GetProjectScaVulnerabilitiesResponse containing SCA vulnerabilities
+         */
         suspend fun getScaResults(
                 projectId: String,
                 pageNumber: Int = 1,
                 pageSizeNumber: Int = 50,
-                severity: List<String>? = null
+                severity: List<String>? = null,
+                branch: String? = null
         ): GetProjectScaVulnerabilitiesResponse =
                 withContext(Dispatchers.IO) {
                         requireApiKey()
                         logBaseUrlIfChanged()
                         try {
-                                api.getScaResults(projectId, pageNumber, pageSizeNumber, severity)
+                                api.getScaResults(projectId, pageNumber, pageSizeNumber, severity, branch)
                         } catch (e: Throwable) {
-                                throw mapToApiError(e, "getScaResults", "ProjectId: $projectId")
+                                throw mapToApiError(e, "getScaResults", "ProjectId: $projectId, Branch: $branch")
                         }
                 }
 

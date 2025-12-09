@@ -426,6 +426,14 @@ data class StartScanRequestDto(
     val vulnerabilityTypes: List<VulnerabilityType>
 )
 
+/**
+ * Request body for starting a scan with optional branch information.
+ * Used when initiating a scan from the IDE to associate the scan with a specific Git branch.
+ */
+data class StartScanBodyDto(
+    val branch: String? = null
+)
+
 data class ContainerDto(
     val id: String,
     val status: String,
