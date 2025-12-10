@@ -7,7 +7,7 @@ plugins {
 
 group = "com.cybedefend"
 
-version = "0.4.2"
+version = "0.5.0"
 
 repositories {
     mavenCentral()
@@ -46,13 +46,14 @@ intellijPlatform {
         }
 
                 changeNotes = """
-                    <h3>0.4.2</h3>
+                    <h3>0.5.0</h3>
                     <ul>
-                        <li><b>Region Switch (US/EU)</b>: selectable in Settings, applied live per workspace.</li>
-                        <li><b>Reset & Reconfigure</b>: reset credentials and trigger the full configuration workflow.</li>
-                        <li>Dynamic Retrofit base URL aligned with the selected region.</li>
-                        <li>Removed ChatBot feature; infra and UI cleaned for this release.</li>
-                        <li>API key / projectId preflight checks for clearer errors.</li>
+                        <li><b>Branch-Aware Scanning</b>: Scans are now automatically associated with the current Git branch.</li>
+                        <li><b>Git Branch Detection</b>: Automatic detection of the active branch from .git/HEAD or git command.</li>
+                        <li><b>Debug Mode</b>: Set CYBEDEFEND_DEBUG=true in .env to use localhost:3000 for local API testing.</li>
+                        <li><b>Branch-Filtered Results</b>: SAST, IaC, and SCA results can be filtered by branch.</li>
+                        <li>Updated IntelliJ Platform Plugin to 2.10.5.</li>
+                        <li>Fixed API pagination (pageSize limit compliance).</li>
                     </ul>
                     <p>See <code>CHANGELOG.md</code> for full details.</p>
                 """.trimIndent()

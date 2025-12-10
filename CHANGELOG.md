@@ -5,6 +5,42 @@ All notable changes to the CybeDefend IntelliJ IDEA Plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2025-12-10
+
+### ✨ Added
+- **Branch-Aware Scanning**  
+  Scans are now automatically associated with the current Git branch. The extension detects the active branch and:
+  - Sends the branch name when starting a scan (`POST /project/{id}/scan/start`)
+  - Filters vulnerability results by branch when fetching SAST, IaC, and SCA results
+  - Displays branch information in scan completion notifications
+
+- **Git Branch Detection Utility**  
+  New `GitUtils` utility class providing:
+  - `getCurrentBranch()`: Detects current branch from `.git/HEAD` or via `git rev-parse`
+  - `isGitRepository()`: Checks if workspace is a Git repository
+  - Handles detached HEAD states and Git worktrees
+
+- **Debug Mode Support**  
+  Development-friendly debug mode for local API testing:
+  - Set `CYBEDEFEND_DEBUG=true` in `.env` file or environment
+  - Automatically routes all API calls to `http://localhost:3000`
+  - `.env` file loaded automatically by Gradle at build time
+
+### 🔧 Technical
+- **API Service Updates**:
+  - `startScan()` now accepts optional `branch` parameter
+  - `getSastResults()`, `getIacResults()`, `getScaResults()` support branch filtering
+  - New `StartScanBodyDto` for request body with branch field
+
+- **Build Configuration**:
+  - Updated IntelliJ Platform Plugin to version 2.10.5
+  - Fixed Kotlin stdlib version alignment (1.9.25)
+  - Added `.env` file parsing in `build.gradle.kts`
+  - Environment variables properly forwarded to sandboxed IDE
+
+### 🐛 Fixed
+- **API Pagination**: Fixed `pageSize` exceeding API limit (changed from 100 to 20)
+
 ## [0.4.0] - 2025-08-18
 
 ### ✨ Added
